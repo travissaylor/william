@@ -14,7 +14,7 @@ export interface CreateWorkspaceOpts {
 
 export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
   const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', name);
-  const prdPath = path.join(WILLIAM_ROOT, 'tasks', opts.prdFile);
+  const prdPath = path.resolve(opts.prdFile);
 
   if (fs.existsSync(workspaceDir)) {
     throw new Error(`Workspace "${name}" already exists at ${workspaceDir}`);
@@ -29,7 +29,7 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
   }
 
   if (!fs.existsSync(prdPath)) {
-    throw new Error(`PRD file not found in tasks/: ${opts.prdFile}`);
+    throw new Error(`PRD file not found: ${prdPath}`);
   }
 
   const rawMarkdown = fs.readFileSync(prdPath, 'utf-8');
@@ -40,7 +40,7 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
     project: opts.project ?? path.basename(resolvedTarget),
     targetDir: resolvedTarget,
     branchName: opts.branchName,
-    sourceFile: opts.prdFile,
+    sourceFile: prdPath,
   });
 
   fs.mkdirSync(path.join(workspaceDir, 'logs'), { recursive: true });

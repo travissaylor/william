@@ -38,7 +38,7 @@ program
     'Create workspace (if needed) and start the iteration loop, or resume if already exists',
   )
   .requiredOption('--target <dir>', 'target project directory')
-  .requiredOption('--prd <file>', 'PRD markdown file in tasks/')
+  .requiredOption('--prd <file>', 'path to PRD markdown file')
   .requiredOption('--branch <name>', 'git branch name')
   .option('--project <name>', 'project name (defaults to target directory basename)')
   .option('--max-iterations <n>', 'maximum iterations', '20')

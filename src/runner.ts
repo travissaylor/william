@@ -100,7 +100,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
     }
 
     // 3. Read markdown PRD
-    const prdPath = path.join(WILLIAM_ROOT, 'tasks', state.sourceFile);
+    const prdPath = state.sourceFile;
     const rawMarkdown = fs.readFileSync(prdPath, 'utf-8');
 
     // 4. Parse PRD

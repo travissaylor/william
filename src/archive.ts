@@ -62,10 +62,9 @@ export function archiveWorkspace(name: string): string {
     copyDirRecursive(logsDir, path.join(archivePath, 'logs'));
   }
 
-  // Copy source PRD from tasks/
-  const prdPath = path.join(WILLIAM_ROOT, 'tasks', state.sourceFile);
-  if (fs.existsSync(prdPath)) {
-    fs.copyFileSync(prdPath, path.join(archivePath, state.sourceFile));
+  // Copy source PRD
+  if (fs.existsSync(state.sourceFile)) {
+    fs.copyFileSync(state.sourceFile, path.join(archivePath, path.basename(state.sourceFile)));
   }
 
   // Remove workspace directory

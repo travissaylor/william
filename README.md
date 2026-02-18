@@ -33,11 +33,11 @@ Verify: `william --help`
 ```sh
 william start my-feature \
   --target ~/projects/my-app \
-  --prd my-feature-prd.md \
+  --prd ~/docs/my-feature-prd.md \
   --branch feature/my-feature
 ```
 
-This creates a workspace, parses the PRD from `tasks/my-feature-prd.md`, and starts iterating through stories against your target project.
+This creates a workspace, parses the PRD, and starts iterating through stories against your target project.
 
 ## Commands
 
@@ -48,7 +48,7 @@ Create a workspace (or resume an existing one) and start the iteration loop.
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--target <dir>` | yes | Target project directory |
-| `--prd <file>` | yes | PRD markdown file (must exist in `tasks/`) |
+| `--prd <file>` | yes | Path to PRD markdown file |
 | `--branch <name>` | yes | Git branch to work on |
 | `--project <name>` | no | Project name (defaults to target dir basename) |
 | `--max-iterations <n>` | no | Max iterations before stopping (default: 20) |
@@ -72,7 +72,7 @@ Archive a stopped workspace to `archive/`. Copies state, logs, progress, and the
 
 ## PRD format
 
-Place PRD files in `tasks/`. William parses these markdown sections:
+William parses these markdown sections from your PRD file:
 
 ```markdown
 # Feature Name
@@ -138,7 +138,6 @@ william/
 │       └── context-builder.ts  # Prompt context assembly
 ├── templates/
 │   └── agent-instructions.md   # Agent prompt template
-├── tasks/                   # PRD markdown files (committed)
 ├── workspaces/              # Runtime state (gitignored)
 └── archive/                 # Archived workspaces (gitignored)
 ```
