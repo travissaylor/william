@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 import { Command } from "commander";
+import { archiveWorkspace } from "./archive.js";
 
 const program = new Command();
 
@@ -32,10 +33,16 @@ program
   });
 
 program
-  .command("archive <task>")
-  .description("Archive a completed task and its workspace")
-  .action((task) => {
-    console.log("archive:", { task });
+  .command("archive <workspace-name>")
+  .description("Archive a completed workspace (must be stopped first)")
+  .action((workspaceName: string) => {
+    try {
+      const archivePath = archiveWorkspace(workspaceName);
+      console.log(`[william] Workspace "${workspaceName}" archived to: ${archivePath}`);
+    } catch (err) {
+      console.error(`[william] Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
   });
 
 program
