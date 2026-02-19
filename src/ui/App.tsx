@@ -1,37 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Text, Static } from 'ink';
+import { Box, useStdout } from 'ink';
 import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent } from './events.js';
 import type { WorkspaceState } from '../types.js';
 import { Dashboard } from './Dashboard.js';
-import { ThinkingSpinner } from './Spinner.js';
-import { MarkdownText } from './MarkdownText.js';
+import { LogArea } from './LogArea.js';
+import type { LogEntry } from './LogArea.js';
+
+/** Dashboard border (top + bottom) plus 2 content lines = 4 rows */
+const DASHBOARD_HEIGHT = 4;
+/** Maximum log entries kept in memory to prevent unbounded growth */
+const MAX_ENTRIES = 500;
 
 export interface AppProps {
   emitter: TuiEmitter;
   workspaceName: string;
   initialState: WorkspaceState;
   maxIterations: number;
-}
-
-interface LogEntry {
-  id: number;
-  type: TuiEvent['type'];
-  text: string;
-}
-
-function LogEntryText({ entry }: { entry: LogEntry }) {
-  switch (entry.type) {
-    case 'error':
-      return <Text color="red">{entry.text}</Text>;
-    case 'system':
-      return <Text color="yellow">{entry.text}</Text>;
-    case 'tool-call':
-      return <Text color="magenta">{entry.text}</Text>;
-    case 'assistant-text':
-      return <MarkdownText>{entry.text}</MarkdownText>;
-    default:
-      return <Text>{entry.text}</Text>;
-  }
 }
 
 function deriveInitialDashboard(workspaceName: string, state: WorkspaceState, maxIterations: number): DashboardData {
@@ -55,6 +39,8 @@ function deriveInitialDashboard(workspaceName: string, state: WorkspaceState, ma
 }
 
 export function App({ emitter, workspaceName, initialState, maxIterations }: AppProps) {
+  const { stdout } = useStdout();
+  const [terminalRows, setTerminalRows] = useState(stdout.rows || 24);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [liveText, setLiveText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -64,6 +50,15 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
   const liveTextRef = useRef('');
   const idRef = useRef(0);
   const startTimeRef = useRef(Date.now());
+
+  // Handle terminal resize
+  useEffect(() => {
+    const onResize = () => setTerminalRows(stdout.rows || 24);
+    stdout.on('resize', onResize);
+    return () => {
+      stdout.off('resize', onResize);
+    };
+  }, [stdout]);
 
   useEffect(() => {
     const handler = (event: TuiEvent) => {
@@ -92,16 +87,22 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
           const committedText = liveTextRef.current;
           liveTextRef.current = '';
           setLiveText('');
-          setEntries(prev => [
-            ...prev,
-            { id: idRef.current++, type: 'assistant-text', text: committedText },
-            { id: idRef.current++, type: event.type, text: entryText },
-          ]);
+          setEntries(prev => {
+            const next = [
+              ...prev,
+              { id: idRef.current++, type: 'assistant-text' as const, text: committedText },
+              { id: idRef.current++, type: event.type, text: entryText },
+            ];
+            return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next;
+          });
         } else {
-          setEntries(prev => [
-            ...prev,
-            { id: idRef.current++, type: event.type, text: entryText },
-          ]);
+          setEntries(prev => {
+            const next = [
+              ...prev,
+              { id: idRef.current++, type: event.type, text: entryText },
+            ];
+            return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next;
+          });
         }
       }
     };
@@ -112,18 +113,12 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
     };
   }, [emitter]);
 
+  const logHeight = Math.max(1, terminalRows - DASHBOARD_HEIGHT);
+
   return (
-    <Box flexDirection="column">
-      <Static items={entries}>
-        {(entry) => (
-          <Box key={entry.id}>
-            <LogEntryText entry={entry} />
-          </Box>
-        )}
-      </Static>
+    <Box flexDirection="column" height={terminalRows}>
       <Dashboard data={dashboard} startTime={startTimeRef.current} />
-      {liveText ? <MarkdownText>{liveText}</MarkdownText> : null}
-      {isThinking && !liveText ? <ThinkingSpinner /> : null}
+      <LogArea entries={entries} liveText={liveText} isThinking={isThinking} height={logHeight} />
     </Box>
   );
 }
