@@ -4,6 +4,7 @@ import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent } from './event
 import type { WorkspaceState } from '../types.js';
 import { Dashboard } from './Dashboard.js';
 import { ThinkingSpinner } from './Spinner.js';
+import { MarkdownText } from './MarkdownText.js';
 
 export interface AppProps {
   emitter: TuiEmitter;
@@ -26,6 +27,8 @@ function LogEntryText({ entry }: { entry: LogEntry }) {
       return <Text color="yellow">{entry.text}</Text>;
     case 'tool-call':
       return <Text color="magenta">{entry.text}</Text>;
+    case 'assistant-text':
+      return <MarkdownText>{entry.text}</MarkdownText>;
     default:
       return <Text>{entry.text}</Text>;
   }
@@ -119,7 +122,7 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
         )}
       </Static>
       <Dashboard data={dashboard} startTime={startTimeRef.current} />
-      {liveText ? <Text color="white">{liveText}</Text> : null}
+      {liveText ? <MarkdownText>{liveText}</MarkdownText> : null}
       {isThinking && !liveText ? <ThinkingSpinner /> : null}
     </Box>
   );
