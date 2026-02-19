@@ -228,6 +228,9 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
 
   let normalExit = false;
   let lastChainContext = '';
+  let cumulativeCostUsd = 0;
+  let cumulativeInputTokens = 0;
+  let cumulativeOutputTokens = 0;
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     if (fs.existsSync(stoppedPath)) {
@@ -294,6 +297,29 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
       `[william] Iteration ${iteration + 1}/${maxIterations} — workspace "${workspaceName}" — ${currentStory}: ${storyTitle}`,
     );
 
+    {
+      const storyValues = Object.values(state.stories);
+      const storyEntry = state.stories[currentStory];
+      const hintExists = fs.existsSync(stuckHintPath);
+      const attempts = storyEntry?.attempts ?? 0;
+      emitter.dashboardUpdate({
+        workspaceName,
+        storyId: currentStory,
+        storyTitle,
+        iteration: iteration + 1,
+        maxIterations,
+        storiesCompleted: storyValues.filter(s => s.passes === true).length,
+        storiesTotal: storyValues.length,
+        storiesSkipped: storyValues.filter(s => s.passes === 'skipped').length,
+        cumulativeCostUsd,
+        cumulativeInputTokens,
+        cumulativeOutputTokens,
+        storyAttempts: attempts,
+        stuckStatus: !hintExists ? 'normal' : (attempts >= 4 ? 'approaching-skip' : 'hint-written'),
+        filesModified: 0,
+      });
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const logPath = path.join(logsDir, `${timestamp}-${currentStory}.log`);
     const logStream = fs.createWriteStream(logPath);
@@ -324,6 +350,38 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
     }
 
     saveState(statePath, currentState);
+
+    cumulativeCostUsd += session.totalCostUsd;
+    cumulativeInputTokens += session.inputTokens;
+    cumulativeOutputTokens += session.outputTokens;
+
+    {
+      const updatedValues = Object.values(currentState.stories);
+      const updatedAttempts = currentState.stories[currentStory]?.attempts ?? 0;
+      const hintExists = fs.existsSync(stuckHintPath);
+      const filesModified = new Set(
+        session.toolUses
+          .filter(tu => tu.name === 'Write' || tu.name === 'Edit')
+          .map(tu => (tu.input as Record<string, unknown>).file_path as string)
+          .filter(Boolean),
+      ).size;
+      emitter.dashboardUpdate({
+        workspaceName,
+        storyId: currentStory,
+        storyTitle,
+        iteration: iteration + 1,
+        maxIterations,
+        storiesCompleted: updatedValues.filter(s => s.passes === true).length,
+        storiesTotal: updatedValues.length,
+        storiesSkipped: updatedValues.filter(s => s.passes === 'skipped').length,
+        cumulativeCostUsd,
+        cumulativeInputTokens,
+        cumulativeOutputTokens,
+        storyAttempts: updatedAttempts,
+        stuckStatus: !hintExists ? 'normal' : (updatedAttempts >= 4 ? 'approaching-skip' : 'hint-written'),
+        filesModified,
+      });
+    }
 
     // Inline stuck detection (replaces watchdog)
     const stuckResult = runStuckDetection(currentState, workspaceDir, session);
