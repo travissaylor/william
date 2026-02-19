@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text } from 'ink';
 import { marked } from 'marked';
-import markedTerminal from 'marked-terminal';
+import { markedTerminal } from 'marked-terminal';
 
 // Configure marked with terminal renderer once
 marked.use(markedTerminal());
