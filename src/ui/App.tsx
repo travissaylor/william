@@ -3,6 +3,7 @@ import { Box, Text, Static } from 'ink';
 import type { TuiEmitter, TuiEvent, DashboardData } from './events.js';
 import type { WorkspaceState } from '../types.js';
 import { Dashboard } from './Dashboard.js';
+import { ThinkingSpinner } from './Spinner.js';
 
 export interface AppProps {
   emitter: TuiEmitter;
@@ -40,6 +41,7 @@ function deriveInitialDashboard(workspaceName: string, state: WorkspaceState, ma
 export function App({ emitter, workspaceName, initialState, maxIterations }: AppProps) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [liveText, setLiveText] = useState('');
+  const [isThinking, setIsThinking] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardData>(() =>
     deriveInitialDashboard(workspaceName, initialState, maxIterations),
   );
@@ -54,7 +56,13 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
         return;
       }
 
+      if (event.type === 'thinking') {
+        setIsThinking(event.isThinking);
+        return;
+      }
+
       if (event.type === 'assistant-text') {
+        setIsThinking(false);
         liveTextRef.current += event.text;
         setLiveText(liveTextRef.current);
       } else {
@@ -94,6 +102,7 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
       </Static>
       <Dashboard data={dashboard} startTime={startTimeRef.current} />
       {liveText ? <Text>{liveText}</Text> : null}
+      {isThinking && !liveText ? <ThinkingSpinner /> : null}
     </Box>
   );
 }

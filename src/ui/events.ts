@@ -37,7 +37,12 @@ export interface DashboardUpdateEvent {
   data: DashboardData;
 }
 
-export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | DashboardUpdateEvent;
+export interface ThinkingEvent {
+  type: 'thinking';
+  isThinking: boolean;
+}
+
+export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | DashboardUpdateEvent | ThinkingEvent;
 
 export class TuiEmitter extends EventEmitter {
   system(text: string): void {
@@ -54,5 +59,13 @@ export class TuiEmitter extends EventEmitter {
 
   dashboardUpdate(data: DashboardData): void {
     this.emit('event', { type: 'dashboard-update', data } satisfies DashboardUpdateEvent);
+  }
+
+  thinkingStart(): void {
+    this.emit('event', { type: 'thinking', isThinking: true } satisfies ThinkingEvent);
+  }
+
+  thinkingStop(): void {
+    this.emit('event', { type: 'thinking', isThinking: false } satisfies ThinkingEvent);
   }
 }

@@ -326,6 +326,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
 
     const childProcess = adapter.spawn(prompt, { cwd: state.targetDir });
 
+    emitter.thinkingStart();
     const { session } = await consumeStreamOutput({ childProcess, logStream, emitter });
 
     const result = adapter.parseOutput(session.fullText);

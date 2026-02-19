@@ -34,6 +34,11 @@ export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: Strea
       }
     }
 
+    // After tool results are sent back, Claude will be thinking again
+    if (msg.type === 'user') {
+      emitter.thinkingStart();
+    }
+
     onMessage?.(msg);
   });
 
@@ -53,6 +58,7 @@ export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: Strea
     });
 
     childProcess.on('close', () => {
+      emitter.thinkingStop();
       parser.flush();
       logStream.end(() => {
         resolve({ session: parser.getSession() });
