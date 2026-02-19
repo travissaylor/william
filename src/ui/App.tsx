@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, Static } from 'ink';
-import type { TuiEmitter, TuiEvent, DashboardData } from './events.js';
+import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent } from './events.js';
 import type { WorkspaceState } from '../types.js';
 import { Dashboard } from './Dashboard.js';
 import { ThinkingSpinner } from './Spinner.js';
@@ -16,6 +16,19 @@ interface LogEntry {
   id: number;
   type: TuiEvent['type'];
   text: string;
+}
+
+function LogEntryText({ entry }: { entry: LogEntry }) {
+  switch (entry.type) {
+    case 'error':
+      return <Text color="red">{entry.text}</Text>;
+    case 'system':
+      return <Text color="yellow">{entry.text}</Text>;
+    case 'tool-call':
+      return <Text color="magenta">{entry.text}</Text>;
+    default:
+      return <Text>{entry.text}</Text>;
+  }
 }
 
 function deriveInitialDashboard(workspaceName: string, state: WorkspaceState, maxIterations: number): DashboardData {
@@ -66,6 +79,11 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
         liveTextRef.current += event.text;
         setLiveText(liveTextRef.current);
       } else {
+        // Build the text for the new entry
+        const entryText = event.type === 'tool-call'
+          ? `  ▸ ${(event as ToolCallEvent).toolName}${(event as ToolCallEvent).toolInput ? ': ' + (event as ToolCallEvent).toolInput : ''}`
+          : event.text;
+
         // Commit any accumulated live text, then add the new event
         if (liveTextRef.current) {
           const committedText = liveTextRef.current;
@@ -74,12 +92,12 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
           setEntries(prev => [
             ...prev,
             { id: idRef.current++, type: 'assistant-text', text: committedText },
-            { id: idRef.current++, type: event.type, text: event.text },
+            { id: idRef.current++, type: event.type, text: entryText },
           ]);
         } else {
           setEntries(prev => [
             ...prev,
-            { id: idRef.current++, type: event.type, text: event.text },
+            { id: idRef.current++, type: event.type, text: entryText },
           ]);
         }
       }
@@ -95,13 +113,13 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
     <Box flexDirection="column">
       <Static items={entries}>
         {(entry) => (
-          <Text key={entry.id} color={entry.type === 'error' ? 'red' : undefined}>
-            {entry.text}
-          </Text>
+          <Box key={entry.id}>
+            <LogEntryText entry={entry} />
+          </Box>
         )}
       </Static>
       <Dashboard data={dashboard} startTime={startTimeRef.current} />
-      {liveText ? <Text>{liveText}</Text> : null}
+      {liveText ? <Text color="white">{liveText}</Text> : null}
       {isThinking && !liveText ? <ThinkingSpinner /> : null}
     </Box>
   );

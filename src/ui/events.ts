@@ -15,6 +15,12 @@ export interface ErrorEvent {
   text: string;
 }
 
+export interface ToolCallEvent {
+  type: 'tool-call';
+  toolName: string;
+  toolInput: string;
+}
+
 export interface DashboardData {
   workspaceName: string;
   storyId: string | null;
@@ -42,7 +48,7 @@ export interface ThinkingEvent {
   isThinking: boolean;
 }
 
-export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | DashboardUpdateEvent | ThinkingEvent;
+export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | ToolCallEvent | DashboardUpdateEvent | ThinkingEvent;
 
 export class TuiEmitter extends EventEmitter {
   system(text: string): void {
@@ -55,6 +61,10 @@ export class TuiEmitter extends EventEmitter {
 
   error(text: string): void {
     this.emit('event', { type: 'error', text } satisfies ErrorEvent);
+  }
+
+  toolCall(toolName: string, toolInput: string): void {
+    this.emit('event', { type: 'tool-call', toolName, toolInput } satisfies ToolCallEvent);
   }
 
   dashboardUpdate(data: DashboardData): void {

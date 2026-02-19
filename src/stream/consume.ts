@@ -4,6 +4,31 @@ import { NdjsonParser } from './ndjson-parser.js';
 import type { StreamMessage, StreamSession } from './types.js';
 import type { TuiEmitter } from '../ui/events.js';
 
+function summarizeToolInput(toolName: string, input: Record<string, unknown>): string {
+  // Provide a brief one-line summary based on common tool patterns
+  if (input.command && typeof input.command === 'string') {
+    const cmd = input.command.length > 80 ? input.command.slice(0, 77) + '...' : input.command;
+    return cmd;
+  }
+  if (input.file_path && typeof input.file_path === 'string') {
+    return String(input.file_path);
+  }
+  if (input.pattern && typeof input.pattern === 'string') {
+    return String(input.pattern);
+  }
+  if (input.query && typeof input.query === 'string') {
+    const q = String(input.query);
+    return q.length > 80 ? q.slice(0, 77) + '...' : q;
+  }
+  // Fallback: show first string-valued key
+  for (const val of Object.values(input)) {
+    if (typeof val === 'string' && val.length > 0) {
+      return val.length > 80 ? val.slice(0, 77) + '...' : val;
+    }
+  }
+  return '';
+}
+
 export interface ConsumeOpts {
   childProcess: ChildProcess;
   logStream: fs.WriteStream;
@@ -25,11 +50,13 @@ export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: Strea
     // Write each structured event as NDJSON to the log
     logStream.write(JSON.stringify(msg) + '\n');
 
-    // Route assistant text content to the TUI
+    // Route assistant content to the TUI
     if (msg.type === 'assistant') {
       for (const block of msg.message.content) {
         if (block.type === 'text') {
           emitter.assistantText(block.text);
+        } else if (block.type === 'tool_use') {
+          emitter.toolCall(block.name, summarizeToolInput(block.name, block.input));
         }
       }
     }
