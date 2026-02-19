@@ -2,10 +2,12 @@ import type { ChildProcess } from 'child_process';
 import type * as fs from 'fs';
 import { NdjsonParser } from './ndjson-parser.js';
 import type { StreamMessage, StreamSession } from './types.js';
+import type { TuiEmitter } from '../ui/events.js';
 
 export interface ConsumeOpts {
   childProcess: ChildProcess;
   logStream: fs.WriteStream;
+  emitter: TuiEmitter;
   onMessage?: (msg: StreamMessage) => void;
 }
 
@@ -16,18 +18,18 @@ export interface ConsumeOpts {
  * Returns the accumulated StreamSession on close.
  */
 export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: StreamSession }> {
-  const { childProcess, logStream, onMessage } = opts;
+  const { childProcess, logStream, emitter, onMessage } = opts;
   const parser = new NdjsonParser();
 
   parser.on('message', (msg: StreamMessage) => {
     // Write each structured event as NDJSON to the log
     logStream.write(JSON.stringify(msg) + '\n');
 
-    // Echo assistant text content to console for human readability
+    // Route assistant text content to the TUI
     if (msg.type === 'assistant') {
       for (const block of msg.message.content) {
         if (block.type === 'text') {
-          process.stdout.write(block.text);
+          emitter.assistantText(block.text);
         }
       }
     }
@@ -36,7 +38,7 @@ export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: Strea
   });
 
   parser.on('parse-error', (line: string) => {
-    process.stderr.write(`[william] NDJSON parse error: ${line}\n`);
+    emitter.error(`[william] NDJSON parse error: ${line}`);
   });
 
   return new Promise<{ session: StreamSession }>((resolve, reject) => {
@@ -46,7 +48,7 @@ export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: Strea
 
     childProcess.stderr?.on('data', (chunk: Buffer) => {
       const text = chunk.toString();
-      process.stderr.write(text);
+      emitter.error(text);
       logStream.write(text);
     });
 

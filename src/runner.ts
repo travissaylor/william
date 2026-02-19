@@ -18,6 +18,7 @@ import { consumeStreamOutput } from './stream/consume.js';
 import { extractChainContext, formatChainContextForPrompt } from './stream/chain.js';
 import { sendNotification } from './notifier.js';
 import type { StreamSession } from './stream/types.js';
+import type { TuiEmitter } from './ui/events.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const WILLIAM_ROOT = path.resolve(__dirname, '..');
@@ -207,7 +208,7 @@ function runStuckDetection(
 
 // --- Main runner ---
 
-export async function runWorkspace(workspaceName: string, opts: RunOpts): Promise<void> {
+export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter: TuiEmitter): Promise<void> {
   const maxIterations = opts.maxIterations ?? 20;
   const sleepMs = opts.sleepMs ?? 2000;
   const { adapter } = opts;
@@ -230,12 +231,12 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     if (fs.existsSync(stoppedPath)) {
-      console.log(`[william] Workspace "${workspaceName}" has been stopped. Halting.`);
+      emitter.system(`[william] Workspace "${workspaceName}" has been stopped. Halting.`);
       normalExit = true;
       break;
     }
     if (fs.existsSync(pausedPath)) {
-      console.log(`[william] Workspace "${workspaceName}" is paused. Halting.`);
+      emitter.system(`[william] Workspace "${workspaceName}" is paused. Halting.`);
       normalExit = true;
       break;
     }
@@ -243,7 +244,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
     const state = loadState(statePath);
     const currentStory = getCurrentStory(state);
     if (currentStory === null) {
-      console.log(`[william] All stories complete for workspace "${workspaceName}".`);
+      emitter.system(`[william] All stories complete for workspace "${workspaceName}".`);
       normalExit = true;
       break;
     }
@@ -289,7 +290,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
       chain_context: lastChainContext,
     });
 
-    console.log(
+    emitter.system(
       `[william] Iteration ${iteration + 1}/${maxIterations} — workspace "${workspaceName}" — ${currentStory}: ${storyTitle}`,
     );
 
@@ -299,7 +300,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
 
     const childProcess = adapter.spawn(prompt, { cwd: state.targetDir });
 
-    const { session } = await consumeStreamOutput({ childProcess, logStream });
+    const { session } = await consumeStreamOutput({ childProcess, logStream, emitter });
 
     const result = adapter.parseOutput(session.fullText);
     result.session = session;
@@ -311,7 +312,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
       if (fs.existsSync(stuckHintPath)) {
         fs.unlinkSync(stuckHintPath);
       }
-      console.log(`[william] Story ${currentStory} marked complete.`);
+      emitter.system(`[william] Story ${currentStory} marked complete.`);
 
       // Extract chain context for the next story
       const chainCtx = extractChainContext(session);
@@ -319,7 +320,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
     } else {
       currentState = incrementAttempts(currentState, currentStory);
       const attempts = currentState.stories[currentStory]?.attempts ?? 0;
-      console.log(`[william] Story ${currentStory} not yet complete (attempts: ${attempts}).`);
+      emitter.system(`[william] Story ${currentStory} not yet complete (attempts: ${attempts}).`);
     }
 
     saveState(statePath, currentState);
@@ -328,7 +329,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
     const stuckResult = runStuckDetection(currentState, workspaceDir, session);
 
     if (stuckResult.action === 'pause') {
-      console.log(`[william] Stuck detection triggered pause for workspace "${workspaceName}".`);
+      emitter.system(`[william] Stuck detection triggered pause for workspace "${workspaceName}".`);
       normalExit = true;
       break;
     }
@@ -337,7 +338,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
     }
 
     if (result.allComplete || getCurrentStory(currentState) === null) {
-      console.log(`[william] All stories complete for workspace "${workspaceName}".`);
+      emitter.system(`[william] All stories complete for workspace "${workspaceName}".`);
       normalExit = true;
       break;
     }
@@ -346,7 +347,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
   }
 
   if (!normalExit) {
-    console.warn(
+    emitter.error(
       `[william] Warning: max iterations (${maxIterations}) reached for workspace "${workspaceName}". Stopping.`,
     );
   }

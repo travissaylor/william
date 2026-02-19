@@ -1,8 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { createElement } from 'react';
+import { render } from 'ink';
 import { parsePrd } from './prd/parser.js';
 import { initStateFromPrd, loadState, getCurrentStory } from './prd/tracker.js';
 import { runWorkspace, WILLIAM_ROOT, type RunOpts } from './runner.js';
+import { TuiEmitter } from './ui/events.js';
+import { App } from './ui/App.js';
 import type { WorkspaceState } from './types.js';
 
 export interface CreateWorkspaceOpts {
@@ -59,7 +63,25 @@ export async function startWorkspace(name: string, opts: RunOpts): Promise<void>
       `Workspace "${name}" does not exist. Create it first with: william start ${name} --target <dir> --prd <file> --branch <name>`,
     );
   }
-  await runWorkspace(name, opts);
+
+  const statePath = path.join(workspaceDir, 'state.json');
+  const initialState = loadState(statePath);
+
+  const emitter = new TuiEmitter();
+  const inkApp = render(
+    createElement(App, {
+      emitter,
+      workspaceName: name,
+      initialState,
+      maxIterations: opts.maxIterations ?? 20,
+    }),
+  );
+
+  try {
+    await runWorkspace(name, opts, emitter);
+  } finally {
+    inkApp.unmount();
+  }
 }
 
 export function stopWorkspace(name: string): void {
