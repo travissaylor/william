@@ -59,6 +59,7 @@ export function Dashboard({ data, startTime }: DashboardProps) {
         <Text>Iter </Text>
         <Text bold>{data.iteration}</Text>
         <Text>/{data.maxIterations}</Text>
+        {data.modelName ? <><Text dimColor>{' │ '}</Text><Text dimColor>{data.modelName}</Text></> : null}
       </Box>
       <Box>
         <Text>{renderProgressBar(data.storiesCompleted, data.storiesTotal)}</Text>

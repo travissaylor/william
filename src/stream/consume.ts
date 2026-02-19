@@ -61,8 +61,24 @@ export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: Strea
       }
     }
 
-    // After tool results are sent back, Claude will be thinking again
+    // Route result messages to the TUI with cost/token/duration data
+    if (msg.type === 'result') {
+      emitter.result(msg.total_cost_usd, msg.usage.input_tokens, msg.usage.output_tokens, msg.duration_ms);
+    }
+
+    // Route system init messages to show model name in dashboard
+    if (msg.type === 'system' && msg.subtype === 'init') {
+      emitter.system(`[model: ${msg.model}]`);
+    }
+
+    // Route tool result errors and start thinking after user messages
     if (msg.type === 'user') {
+      for (const block of msg.message.content) {
+        if (block.type === 'tool_result' && block.is_error) {
+          const preview = block.content.length > 200 ? block.content.slice(0, 197) + '...' : block.content;
+          emitter.error(`Tool error: ${preview}`);
+        }
+      }
       emitter.thinkingStart();
     }
 

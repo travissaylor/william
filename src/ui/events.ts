@@ -36,6 +36,7 @@ export interface DashboardData {
   storyAttempts: number;
   stuckStatus: 'normal' | 'hint-written' | 'approaching-skip';
   filesModified: number;
+  modelName?: string;
 }
 
 export interface DashboardUpdateEvent {
@@ -48,7 +49,15 @@ export interface ThinkingEvent {
   isThinking: boolean;
 }
 
-export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | ToolCallEvent | DashboardUpdateEvent | ThinkingEvent;
+export interface ResultEvent {
+  type: 'result';
+  totalCostUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  durationMs: number;
+}
+
+export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | ToolCallEvent | DashboardUpdateEvent | ThinkingEvent | ResultEvent;
 
 export class TuiEmitter extends EventEmitter {
   system(text: string): void {
@@ -77,5 +86,9 @@ export class TuiEmitter extends EventEmitter {
 
   thinkingStop(): void {
     this.emit('event', { type: 'thinking', isThinking: false } satisfies ThinkingEvent);
+  }
+
+  result(totalCostUsd: number, inputTokens: number, outputTokens: number, durationMs: number): void {
+    this.emit('event', { type: 'result', totalCostUsd, inputTokens, outputTokens, durationMs } satisfies ResultEvent);
   }
 }

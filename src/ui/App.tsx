@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, useStdout } from 'ink';
-import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent } from './events.js';
+import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent, ResultEvent } from './events.js';
 import type { WorkspaceState } from '../types.js';
 import { Dashboard } from './Dashboard.js';
 import { LogArea } from './LogArea.js';
@@ -64,6 +64,17 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
     const handler = (event: TuiEvent) => {
       if (event.type === 'dashboard-update') {
         setDashboard(event.data);
+        return;
+      }
+
+      if (event.type === 'result') {
+        const r = event as ResultEvent;
+        setDashboard(prev => ({
+          ...prev,
+          cumulativeCostUsd: prev.cumulativeCostUsd + r.totalCostUsd,
+          cumulativeInputTokens: prev.cumulativeInputTokens + r.inputTokens,
+          cumulativeOutputTokens: prev.cumulativeOutputTokens + r.outputTokens,
+        }));
         return;
       }
 
