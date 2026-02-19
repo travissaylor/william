@@ -84,6 +84,12 @@ You may include a brief note about what you implemented or any patterns you disc
 
 ---
 
+## Chain Context
+
+{{chain_context}}
+
+---
+
 ## Stuck Hint
 
 {{stuck_hint}}

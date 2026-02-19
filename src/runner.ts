@@ -8,12 +8,16 @@ import {
   saveState,
   getCurrentStory,
   markStoryComplete,
+  markStorySkipped,
   incrementAttempts,
 } from './prd/tracker.js';
 import { parsePrd } from './prd/parser.js';
 import { buildContext } from './prd/context-builder.js';
 import { replacePlaceholders } from './template.js';
-import { runWatchdog } from './watchdog.js';
+import { consumeStreamOutput } from './stream/consume.js';
+import { extractChainContext, formatChainContextForPrompt } from './stream/chain.js';
+import { sendNotification } from './notifier.js';
+import type { StreamSession } from './stream/types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const WILLIAM_ROOT = path.resolve(__dirname, '..');
@@ -54,6 +58,155 @@ function buildStoryTable(parsedStories: ReturnType<typeof parsePrd>['stories'], 
     .join('\n');
 }
 
+// --- Inline stuck detection (replaces watchdog module) ---
+
+interface StuckResult {
+  action: 'continue' | 'hint' | 'skip' | 'pause';
+}
+
+function detectToolLoops(session: StreamSession): boolean {
+  const counts: Record<string, number> = {};
+  for (const tu of session.toolUses) {
+    const key = `${tu.name}:${JSON.stringify(tu.input)}`;
+    counts[key] = (counts[key] ?? 0) + 1;
+    if (counts[key] >= 10) return true;
+  }
+  return false;
+}
+
+function detectZeroProgress(session: StreamSession): boolean {
+  const writeEdits = session.toolUses.filter(
+    (tu) => tu.name === 'Write' || tu.name === 'Edit',
+  );
+  return session.toolUses.length > 0 && writeEdits.length === 0;
+}
+
+function detectHighErrorRate(session: StreamSession): boolean {
+  if (session.toolResults.length === 0) return false;
+  const errors = session.toolResults.filter((tr) => tr.is_error);
+  return errors.length / session.toolResults.length > 0.5;
+}
+
+function writeStuckHint(
+  stuckHintPath: string,
+  storyId: string,
+  session: StreamSession,
+  reason: string,
+): void {
+  const errorResults = session.toolResults
+    .filter((tr) => tr.is_error)
+    .slice(0, 20);
+  const filesModified = session.toolUses
+    .filter((tu) => tu.name === 'Write' || tu.name === 'Edit')
+    .map((tu) => (tu.input as Record<string, unknown>).file_path as string)
+    .filter(Boolean)
+    .slice(0, 10);
+
+  const content = [
+    `# Stuck Hint for ${storyId}`,
+    '',
+    `## Reason`,
+    reason,
+    '',
+    `## Error Results from Session`,
+    errorResults.length > 0
+      ? errorResults.map((e) => `- [${e.tool_use_id}] ${e.content.slice(0, 200)}`).join('\n')
+      : '_No error results_',
+    '',
+    `## Files Modified`,
+    filesModified.length > 0
+      ? filesModified.map((f) => `- \`${f}\``).join('\n')
+      : '_No files modified_',
+    '',
+    `## Session Stats`,
+    `- Tool uses: ${session.toolUses.length}`,
+    `- Tool results: ${session.toolResults.length}`,
+    `- Error results: ${errorResults.length}`,
+    `- Cost: $${session.totalCostUsd.toFixed(4)}`,
+    '',
+    `## Suggestion`,
+    'The previous approach may not be working. Consider:',
+    '- Re-reading the acceptance criteria from scratch',
+    '- Checking for type errors or missing imports',
+    '- Looking at adjacent files for patterns to follow',
+    '- Running quality checks manually to isolate the specific failure',
+    '- Breaking the implementation into smaller incremental steps',
+  ].join('\n');
+
+  fs.writeFileSync(stuckHintPath, content, 'utf-8');
+}
+
+function runStuckDetection(
+  state: WorkspaceState,
+  workspaceDir: string,
+  session: StreamSession,
+): StuckResult {
+  const currentStoryId = getCurrentStory(state);
+  if (currentStoryId === null) return { action: 'continue' };
+
+  const storyState = state.stories[currentStoryId];
+  if (!storyState) return { action: 'continue' };
+
+  const attempts = storyState.attempts;
+  const stuckHintPath = path.join(workspaceDir, '.stuck-hint.md');
+  const stuckHintExists = fs.existsSync(stuckHintPath);
+  const pausedPath = path.join(workspaceDir, '.paused');
+
+  // Escalation: stuck hint already written + attempts >= 7 → pause
+  if (stuckHintExists && attempts >= 7) {
+    fs.writeFileSync(
+      pausedPath,
+      `Paused: ${currentStoryId} stuck after ${attempts} attempts\n`,
+      'utf-8',
+    );
+    sendNotification(
+      'William: Workspace Paused',
+      `Story ${currentStoryId} stuck after ${attempts} attempts. Manual intervention required.`,
+    );
+    return { action: 'pause' };
+  }
+
+  // Escalation: stuck hint already written + attempts >= 5 → skip
+  if (stuckHintExists && attempts >= 5) {
+    const statePath = path.join(workspaceDir, 'state.json');
+    const updatedState = markStorySkipped(
+      state,
+      currentStoryId,
+      `Skipped after ${attempts} attempts with stuck hint present`,
+    );
+    saveState(statePath, updatedState);
+    sendNotification(
+      'William: Story Skipped',
+      `Story ${currentStoryId} skipped after ${attempts} attempts.`,
+    );
+    return { action: 'skip' };
+  }
+
+  // Detect stuck from session data: tool loops, zero progress, high error rate
+  const isToolLoop = detectToolLoops(session);
+  const isZeroProgress = detectZeroProgress(session);
+  const isHighErrorRate = detectHighErrorRate(session);
+
+  if (attempts >= 3 || isToolLoop || isZeroProgress || isHighErrorRate) {
+    const reasons: string[] = [];
+    if (attempts >= 3) reasons.push(`Failed ${attempts} times in a row`);
+    if (isToolLoop) reasons.push('Detected tool loop (same tool called 10+ times with identical input)');
+    if (isZeroProgress) reasons.push('No Write/Edit tool uses detected (zero progress)');
+    if (isHighErrorRate) reasons.push('High error rate (>50% of tool results are errors)');
+
+    writeStuckHint(stuckHintPath, currentStoryId, session, reasons.join('; '));
+    sendNotification(
+      'William: Agent Stuck',
+      `Story ${currentStoryId}: ${reasons[0]}. A hint has been written.`,
+    );
+    return { action: 'hint' };
+  }
+
+  return { action: 'continue' };
+}
+
+// --- Main runner ---
+
 export async function runWorkspace(workspaceName: string, opts: RunOpts): Promise<void> {
   const maxIterations = opts.maxIterations ?? 20;
   const sleepMs = opts.sleepMs ?? 2000;
@@ -68,15 +221,14 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
   const logsDir = path.join(workspaceDir, 'logs');
   const templatePath = path.join(WILLIAM_ROOT, 'templates', 'agent-instructions.md');
 
-  // Ensure logs directory exists
   fs.mkdirSync(logsDir, { recursive: true });
 
   const templateContent = fs.readFileSync(templatePath, 'utf-8');
 
   let normalExit = false;
+  let lastChainContext = '';
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
-    // Check for stop/pause signals between iterations
     if (fs.existsSync(stoppedPath)) {
       console.log(`[william] Workspace "${workspaceName}" has been stopped. Halting.`);
       normalExit = true;
@@ -88,10 +240,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
       break;
     }
 
-    // 1. Load state
     const state = loadState(statePath);
-
-    // 2. Get current story; exit if all done
     const currentStory = getCurrentStory(state);
     if (currentStory === null) {
       console.log(`[william] All stories complete for workspace "${workspaceName}".`);
@@ -99,30 +248,25 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
       break;
     }
 
-    // 3. Read markdown PRD
     const prdPath = state.sourceFile;
     const rawMarkdown = fs.readFileSync(prdPath, 'utf-8');
-
-    // 4. Parse PRD
     const parsedPrd = parsePrd(rawMarkdown);
 
-    // 5. Read progress.txt
     const progressTxt = fs.existsSync(progressPath)
       ? fs.readFileSync(progressPath, 'utf-8')
       : '';
 
-    // 6. Read .stuck-hint.md if present
     const stuckHint = fs.existsSync(stuckHintPath)
       ? fs.readFileSync(stuckHintPath, 'utf-8')
       : undefined;
 
-    // Build assembled PRD context
     const prdContext = buildContext({
       parsedPrd,
       rawMarkdown,
       state,
       progressTxt,
       stuckHint,
+      chainContext: lastChainContext || undefined,
     });
 
     const currentStoryObj = parsedPrd.stories.find((s) => s.id === currentStory);
@@ -132,7 +276,6 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
     const codebasePatterns = extractCodebasePatterns(progressTxt);
     const recentLearnings = extractRecentLearnings(progressTxt, 3);
 
-    // 7. Replace all {{placeholder}} tokens in the template
     const prompt = replacePlaceholders(templateContent, {
       branch_name: state.branchName,
       story_id: currentStory,
@@ -143,57 +286,36 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
       recent_learnings: recentLearnings,
       stuck_hint: stuckHint ?? '',
       progress_txt_path: progressPath,
+      chain_context: lastChainContext,
     });
 
-    // 8. Spawn adapter
     console.log(
       `[william] Iteration ${iteration + 1}/${maxIterations} — workspace "${workspaceName}" — ${currentStory}: ${storyTitle}`,
     );
 
-    // 9. Pipe stdout/stderr to log file and terminal
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const logPath = path.join(logsDir, `${timestamp}-${currentStory}.log`);
     const logStream = fs.createWriteStream(logPath);
 
     const childProcess = adapter.spawn(prompt, { cwd: state.targetDir });
 
-    let rawOutput = '';
+    const { session } = await consumeStreamOutput({ childProcess, logStream });
 
-    await new Promise<void>((resolve, reject) => {
-      childProcess.stdout?.on('data', (chunk: Buffer) => {
-        const text = chunk.toString();
-        rawOutput += text;
-        process.stdout.write(text);
-        logStream.write(text);
-      });
-      childProcess.stderr?.on('data', (chunk: Buffer) => {
-        const text = chunk.toString();
-        rawOutput += text;
-        process.stderr.write(text);
-        logStream.write(text);
-      });
-      childProcess.on('close', () => {
-        logStream.end(() => resolve());
-      });
-      childProcess.on('error', (err: Error) => {
-        logStream.destroy();
-        reject(err);
-      });
-    });
+    const result = adapter.parseOutput(session.fullText);
+    result.session = session;
 
-    // 10. Parse adapter output
-    const result = adapter.parseOutput(rawOutput);
-
-    // Reload state (agent may have modified state.json)
     let currentState = loadState(statePath);
 
-    // 11. Mark complete or 12. increment attempts
     if (result.storyComplete || result.allComplete) {
       currentState = markStoryComplete(currentState, currentStory);
       if (fs.existsSync(stuckHintPath)) {
         fs.unlinkSync(stuckHintPath);
       }
       console.log(`[william] Story ${currentStory} marked complete.`);
+
+      // Extract chain context for the next story
+      const chainCtx = extractChainContext(session);
+      lastChainContext = formatChainContextForPrompt(chainCtx, currentStory);
     } else {
       currentState = incrementAttempts(currentState, currentStory);
       const attempts = currentState.stories[currentStory]?.attempts ?? 0;
@@ -202,27 +324,24 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts): Promis
 
     saveState(statePath, currentState);
 
-    // 13. Call watchdog after every iteration
-    const watchdogResult = runWatchdog(currentState, workspaceDir, rawOutput);
+    // Inline stuck detection (replaces watchdog)
+    const stuckResult = runStuckDetection(currentState, workspaceDir, session);
 
-    if (watchdogResult.action === 'pause') {
-      console.log(`[william] Watchdog triggered pause for workspace "${workspaceName}".`);
+    if (stuckResult.action === 'pause') {
+      console.log(`[william] Stuck detection triggered pause for workspace "${workspaceName}".`);
       normalExit = true;
       break;
     }
-    if (watchdogResult.action === 'skip') {
-      // Watchdog calls markStorySkipped internally and saves state; reload to pick up the change
+    if (stuckResult.action === 'skip') {
       currentState = loadState(statePath);
     }
 
-    // Exit loop if all complete
     if (result.allComplete || getCurrentStory(currentState) === null) {
       console.log(`[william] All stories complete for workspace "${workspaceName}".`);
       normalExit = true;
       break;
     }
 
-    // 14. Sleep between iterations
     await sleep(sleepMs);
   }
 

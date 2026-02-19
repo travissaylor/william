@@ -7,6 +7,7 @@ export interface BuildContextOpts {
   state: WorkspaceState;
   progressTxt: string;
   stuckHint?: string;
+  chainContext?: string;
 }
 
 /**
@@ -60,7 +61,7 @@ function storyStatusSymbol(
  * optionally ## Stuck Recovery Hint.
  */
 export function buildContext(opts: BuildContextOpts): string {
-  const { parsedPrd, rawMarkdown, state, progressTxt, stuckHint } = opts;
+  const { parsedPrd, rawMarkdown, state, progressTxt, stuckHint, chainContext } = opts;
   const parts: string[] = [];
 
   const isSmall = Buffer.byteLength(rawMarkdown, 'utf8') < 10_240;
@@ -143,6 +144,11 @@ export function buildContext(opts: BuildContextOpts): string {
   // Optionally append stuck recovery hint
   if (stuckHint) {
     parts.push(`## Stuck Recovery Hint\n\n${stuckHint}`);
+  }
+
+  // Append chain context from previous story session
+  if (chainContext) {
+    parts.push(chainContext);
   }
 
   return parts.join('\n\n');

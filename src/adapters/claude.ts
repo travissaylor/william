@@ -6,7 +6,7 @@ export const ClaudeAdapter: ToolAdapter = {
   name: 'claude',
 
   spawn(prompt: string, opts: { cwd: string }): ChildProcess {
-    const child = spawn('claude', ['--dangerously-skip-permissions', '--print'], {
+    const child = spawn('claude', ['--dangerously-skip-permissions', '--output-format', 'stream-json', "--verbose"], {
       cwd: opts.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
