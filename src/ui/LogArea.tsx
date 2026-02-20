@@ -2,15 +2,29 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { MarkdownText } from './MarkdownText.js';
 import { ThinkingSpinner } from './Spinner.js';
+import { StoryBanner } from './StoryBanner.js';
+import type { BannerKind } from './StoryBanner.js';
 
 export interface LogEntry {
   id: number;
-  type: 'system' | 'assistant-text' | 'error' | 'tool-call';
+  type: 'system' | 'assistant-text' | 'error' | 'tool-call' | 'story-complete' | 'story-skipped' | 'story-start';
   text: string;
+  storyId?: string;
+  storyTitle?: string;
 }
 
 function LogEntryView({ entry }: { entry: LogEntry }) {
   switch (entry.type) {
+    case 'story-complete':
+    case 'story-skipped':
+    case 'story-start': {
+      const kindMap: Record<string, BannerKind> = {
+        'story-complete': 'complete',
+        'story-skipped': 'skipped',
+        'story-start': 'start',
+      };
+      return <StoryBanner kind={kindMap[entry.type]} storyId={entry.storyId!} storyTitle={entry.storyTitle!} />;
+    }
     case 'error':
       return <Text color="red">{entry.text}</Text>;
     case 'system':

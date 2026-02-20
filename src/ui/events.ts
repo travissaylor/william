@@ -57,7 +57,25 @@ export interface ResultEvent {
   durationMs: number;
 }
 
-export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | ToolCallEvent | DashboardUpdateEvent | ThinkingEvent | ResultEvent;
+export interface StoryCompleteEvent {
+  type: 'story-complete';
+  storyId: string;
+  storyTitle: string;
+}
+
+export interface StorySkippedEvent {
+  type: 'story-skipped';
+  storyId: string;
+  storyTitle: string;
+}
+
+export interface StoryStartEvent {
+  type: 'story-start';
+  storyId: string;
+  storyTitle: string;
+}
+
+export type TuiEvent = SystemEvent | AssistantTextEvent | ErrorEvent | ToolCallEvent | DashboardUpdateEvent | ThinkingEvent | ResultEvent | StoryCompleteEvent | StorySkippedEvent | StoryStartEvent;
 
 export class TuiEmitter extends EventEmitter {
   system(text: string): void {
@@ -90,5 +108,17 @@ export class TuiEmitter extends EventEmitter {
 
   result(totalCostUsd: number, inputTokens: number, outputTokens: number, durationMs: number): void {
     this.emit('event', { type: 'result', totalCostUsd, inputTokens, outputTokens, durationMs } satisfies ResultEvent);
+  }
+
+  storyComplete(storyId: string, storyTitle: string): void {
+    this.emit('event', { type: 'story-complete', storyId, storyTitle } satisfies StoryCompleteEvent);
+  }
+
+  storySkipped(storyId: string, storyTitle: string): void {
+    this.emit('event', { type: 'story-skipped', storyId, storyTitle } satisfies StorySkippedEvent);
+  }
+
+  storyStart(storyId: string, storyTitle: string): void {
+    this.emit('event', { type: 'story-start', storyId, storyTitle } satisfies StoryStartEvent);
   }
 }

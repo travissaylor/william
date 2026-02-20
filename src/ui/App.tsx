@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, useStdout } from 'ink';
-import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent, ResultEvent } from './events.js';
+import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent, ResultEvent, StoryCompleteEvent, StorySkippedEvent, StoryStartEvent } from './events.js';
 import type { WorkspaceState } from '../types.js';
 import { Dashboard } from './Dashboard.js';
 import { LogArea } from './LogArea.js';
@@ -88,10 +88,21 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
         liveTextRef.current += event.text;
         setLiveText(liveTextRef.current);
       } else {
-        // Build the text for the new entry
+        // Build the log entry for story transition events or regular events
+        const isStoryEvent = event.type === 'story-complete' || event.type === 'story-skipped' || event.type === 'story-start';
         const entryText = event.type === 'tool-call'
           ? `  ▸ ${(event as ToolCallEvent).toolName}${(event as ToolCallEvent).toolInput ? ': ' + (event as ToolCallEvent).toolInput : ''}`
-          : event.text;
+          : isStoryEvent ? '' : (event as { text: string }).text;
+
+        const newEntry: LogEntry = isStoryEvent
+          ? {
+              id: idRef.current++,
+              type: event.type as LogEntry['type'],
+              text: entryText,
+              storyId: (event as StoryCompleteEvent | StorySkippedEvent | StoryStartEvent).storyId,
+              storyTitle: (event as StoryCompleteEvent | StorySkippedEvent | StoryStartEvent).storyTitle,
+            }
+          : { id: idRef.current++, type: event.type, text: entryText };
 
         // Commit any accumulated live text, then add the new event
         if (liveTextRef.current) {
@@ -102,16 +113,13 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
             const next = [
               ...prev,
               { id: idRef.current++, type: 'assistant-text' as const, text: committedText },
-              { id: idRef.current++, type: event.type, text: entryText },
+              newEntry,
             ];
             return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next;
           });
         } else {
           setEntries(prev => {
-            const next = [
-              ...prev,
-              { id: idRef.current++, type: event.type, text: entryText },
-            ];
+            const next = [...prev, newEntry];
             return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next;
           });
         }

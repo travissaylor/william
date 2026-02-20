@@ -231,6 +231,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
   let cumulativeCostUsd = 0;
   let cumulativeInputTokens = 0;
   let cumulativeOutputTokens = 0;
+  let previousStoryId: string | null = null;
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     if (fs.existsSync(stoppedPath)) {
@@ -293,6 +294,11 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
       chain_context: lastChainContext,
     });
 
+    if (currentStory !== previousStoryId) {
+      emitter.storyStart(currentStory, storyTitle);
+      previousStoryId = currentStory;
+    }
+
     emitter.system(
       `[william] Iteration ${iteration + 1}/${maxIterations} — workspace "${workspaceName}" — ${currentStory}: ${storyTitle}`,
     );
@@ -339,6 +345,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
       if (fs.existsSync(stuckHintPath)) {
         fs.unlinkSync(stuckHintPath);
       }
+      emitter.storyComplete(currentStory, storyTitle);
       emitter.system(`[william] Story ${currentStory} marked complete.`);
 
       // Extract chain context for the next story
@@ -393,6 +400,7 @@ export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter
       break;
     }
     if (stuckResult.action === 'skip') {
+      emitter.storySkipped(currentStory, storyTitle);
       currentState = loadState(statePath);
     }
 
