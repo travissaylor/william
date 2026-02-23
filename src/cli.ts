@@ -234,4 +234,14 @@ program
     }
   });
 
+program
+  .command('prd')
+  .description('Generate a PRD by spawning an interactive Claude session')
+  .argument('[description]', 'Feature description to include in the prompt')
+  .option('-o, --output <path>', 'Output path for the generated PRD file')
+  .action(async (_description?: string, _options?: { output?: string }) => {
+    console.error('[william] prd command is not yet implemented');
+    process.exit(1);
+  });
+
 program.parse();
