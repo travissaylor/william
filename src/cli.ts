@@ -289,7 +289,7 @@ program
         });
         child.stdin!.end(prompt);
       } else {
-        child = spawn('claude', ['--prompt', prompt], {
+        child = spawn('claude', [prompt], {
           stdio: 'inherit',
           cwd: process.cwd(),
         });
