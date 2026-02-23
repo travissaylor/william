@@ -17,11 +17,12 @@ export interface CreateWorkspaceOpts {
 }
 
 export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
-  const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', name);
+  const projectName = opts.project ?? path.basename(path.resolve(opts.targetDir));
+  const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', projectName, name);
   const prdPath = path.resolve(opts.prdFile);
 
   if (fs.existsSync(workspaceDir)) {
-    throw new Error(`Workspace "${name}" already exists at ${workspaceDir}`);
+    throw new Error(`Workspace "${name}" already exists under project "${projectName}" at ${workspaceDir}`);
   }
 
   const resolvedTarget = path.resolve(opts.targetDir);
@@ -41,7 +42,7 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
 
   const state = initStateFromPrd(parsedPrd, {
     workspace: name,
-    project: opts.project ?? path.basename(resolvedTarget),
+    project: projectName,
     targetDir: resolvedTarget,
     branchName: opts.branchName,
     sourceFile: prdPath,
@@ -54,6 +55,9 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
     '## Codebase Patterns\n(none yet)\n\n---\n',
     'utf-8',
   );
+
+  // Copy the PRD into the workspace directory
+  fs.copyFileSync(prdPath, path.join(workspaceDir, 'prd.md'));
 }
 
 export async function startWorkspace(name: string, opts: RunOpts): Promise<void> {
