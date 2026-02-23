@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { WILLIAM_ROOT } from './runner.js';
 import { loadState } from './prd/tracker.js';
+import { resolveWorkspace } from './workspace.js';
 
 function copyDirRecursive(src: string, dest: string): void {
   fs.mkdirSync(dest, { recursive: true });
@@ -17,12 +18,9 @@ function copyDirRecursive(src: string, dest: string): void {
 }
 
 export function archiveWorkspace(name: string): string {
-  const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', name);
+  const resolved = resolveWorkspace(name);
+  const workspaceDir = resolved.workspaceDir;
   const statePath = path.join(workspaceDir, 'state.json');
-
-  if (!fs.existsSync(workspaceDir)) {
-    throw new Error(`Workspace "${name}" does not exist.`);
-  }
 
   if (!fs.existsSync(path.join(workspaceDir, '.stopped'))) {
     throw new Error('Stop the workspace before archiving');

@@ -141,12 +141,9 @@ export async function startWorkspace(name: string, opts: RunOpts): Promise<void>
 }
 
 export function stopWorkspace(name: string): void {
-  const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', name);
-  if (!fs.existsSync(workspaceDir)) {
-    throw new Error(`Workspace "${name}" does not exist.`);
-  }
-  fs.writeFileSync(path.join(workspaceDir, '.stopped'), new Date().toISOString(), 'utf-8');
-  console.log(`[william] Stop signal written for workspace "${name}".`);
+  const resolved = resolveWorkspace(name);
+  fs.writeFileSync(path.join(resolved.workspaceDir, '.stopped'), new Date().toISOString(), 'utf-8');
+  console.log(`[william] Stop signal written for workspace "${resolved.projectName}/${resolved.workspaceName}".`);
 }
 
 export function listWorkspaces(): string[] {
@@ -200,12 +197,9 @@ export interface WorkspaceStatus {
 }
 
 export function getWorkspaceStatus(name: string): WorkspaceStatus {
-  const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', name);
-  const statePath = path.join(workspaceDir, 'state.json');
+  const resolved = resolveWorkspace(name);
+  const statePath = path.join(resolved.workspaceDir, 'state.json');
 
-  if (!fs.existsSync(workspaceDir)) {
-    throw new Error(`Workspace "${name}" does not exist.`);
-  }
   if (!fs.existsSync(statePath)) {
     throw new Error(`Workspace "${name}" has no state.json.`);
   }
@@ -222,11 +216,11 @@ export function getWorkspaceStatus(name: string): WorkspaceStatus {
   const summary = `${passed}/${total} complete, ${skipped} skipped, ${pending} pending${currentStory ? ` (current: ${currentStory})` : ''}`;
 
   let runningStatus: 'running' | 'stopped' | 'paused' = 'running';
-  if (fs.existsSync(path.join(workspaceDir, '.stopped'))) {
+  if (fs.existsSync(path.join(resolved.workspaceDir, '.stopped'))) {
     runningStatus = 'stopped';
-  } else if (fs.existsSync(path.join(workspaceDir, '.paused'))) {
+  } else if (fs.existsSync(path.join(resolved.workspaceDir, '.paused'))) {
     runningStatus = 'paused';
   }
 
-  return { name, state, currentStory, summary, runningStatus };
+  return { name: `${resolved.projectName}/${resolved.workspaceName}`, state, currentStory, summary, runningStatus };
 }

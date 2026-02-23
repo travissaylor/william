@@ -7,7 +7,6 @@ import {
   createWorkspace,
   startWorkspace,
   stopWorkspace,
-  listWorkspaces,
   listGroupedWorkspaces,
   getWorkspaceStatus,
 } from './workspace.js';
@@ -125,28 +124,34 @@ program
           console.log(`  ${mark} ${id}${attempts}${isCurrent}`);
         }
       } else {
-        // Summary for all workspaces
-        const names = listWorkspaces();
-        if (names.length === 0) {
+        // Summary for all workspaces grouped by project
+        const grouped = listGroupedWorkspaces();
+        const projectNames = Object.keys(grouped);
+
+        if (projectNames.length === 0) {
           console.log('No active workspaces.');
           return;
         }
-        for (const name of names) {
-          try {
-            const status = getWorkspaceStatus(name);
-            const storyValues = Object.values(status.state.stories);
-            const passed = storyValues.filter((s) => s.passes === true).length;
-            const total = storyValues.length;
-            const currentPart = status.currentStory ? `, current: ${status.currentStory}` : '';
-            const attemptsPart =
-              status.currentStory && status.state.stories[status.currentStory]
-                ? `, attempts: ${status.state.stories[status.currentStory].attempts}`
-                : '';
-            console.log(
-              `${name} [${status.runningStatus}] — ${passed}/${total} complete${currentPart}${attemptsPart}`,
-            );
-          } catch {
-            console.log(`${name} [unknown] — could not read state`);
+
+        for (const project of projectNames) {
+          console.log(`${project}/`);
+          for (const ws of grouped[project]) {
+            try {
+              const status = getWorkspaceStatus(`${project}/${ws}`);
+              const storyValues = Object.values(status.state.stories);
+              const passed = storyValues.filter((s) => s.passes === true).length;
+              const total = storyValues.length;
+              const currentPart = status.currentStory ? `, current: ${status.currentStory}` : '';
+              const attemptsPart =
+                status.currentStory && status.state.stories[status.currentStory]
+                  ? `, attempts: ${status.state.stories[status.currentStory].attempts}`
+                  : '';
+              console.log(
+                `  ${ws} [${status.runningStatus}] — ${passed}/${total} complete${currentPart}${attemptsPart}`,
+              );
+            } catch {
+              console.log(`  ${ws} [unknown] — could not read state`);
+            }
           }
         }
       }
