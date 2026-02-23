@@ -26,11 +26,12 @@ export function buildPrdPrompt(options: { description?: string; output?: string 
 
   prompt += '\n\n## Agent Instructions\n\n';
   prompt += 'Wrap the final PRD in `<prd>...</prd>` XML tags so it can be extracted programmatically.\n';
+  prompt += '\nAfter generating the PRD, you MUST write it to disk using your file-writing tools (Write tool). Create any parent directories if needed.\n';
 
   if (options.output) {
-    prompt += `\nThe user specified an output path: \`${options.output}\`. Save the PRD to that path. Create parent directories if needed.\n`;
+    prompt += `\nThe user specified an output path: \`${options.output}\`. Save the PRD to that exact path.\n`;
   } else {
-    prompt += '\nNo output path was specified. The default save location is `prds/<feature-name>.md` (where feature-name is kebab-case derived from the PRD title). Create the `prds/` directory if it doesn\'t exist.\n';
+    prompt += '\nNo output path was specified. The default save location is `prds/<feature-name>.md` (where feature-name is kebab-case derived from the PRD title). Ask the user where to save if they haven\'t specified, mentioning the default `prds/<feature-name>.md`.\n';
   }
 
   if (options.description) {
@@ -268,6 +269,16 @@ program
     try {
       const prompt = buildPrdPrompt({ description, output: options?.output });
 
+      // Ensure target directory exists before spawning Claude
+      if (options?.output) {
+        const outputDir = path.dirname(path.resolve(options.output));
+        fs.mkdirSync(outputDir, { recursive: true });
+      } else {
+        fs.mkdirSync(path.resolve('prds'), { recursive: true });
+      }
+
+      const startTime = Date.now();
+
       let child;
 
       if (prompt.length > 100_000) {
@@ -291,6 +302,31 @@ program
       if (exitCode !== 0) {
         console.error(`[william] Claude process exited with code ${exitCode}`);
         process.exit(1);
+      }
+
+      // Print summary of saved PRD
+      if (options?.output) {
+        const resolved = path.resolve(options.output);
+        if (fs.existsSync(resolved)) {
+          console.log(`\nPRD saved to: ${options.output}`);
+        }
+      } else {
+        // Find the most recently modified .md file in prds/ created during this session
+        const prdsDir = path.resolve('prds');
+        if (fs.existsSync(prdsDir)) {
+          const files = fs.readdirSync(prdsDir)
+            .filter(f => f.endsWith('.md'))
+            .map(f => ({
+              name: f,
+              mtime: fs.statSync(path.join(prdsDir, f)).mtimeMs,
+            }))
+            .filter(f => f.mtime >= startTime)
+            .sort((a, b) => b.mtime - a.mtime);
+
+          if (files.length > 0) {
+            console.log(`\nPRD saved to: prds/${files[0].name}`);
+          }
+        }
       }
     } catch (err) {
       console.error(`[william] Error: ${err instanceof Error ? err.message : String(err)}`);
