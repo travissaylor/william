@@ -10,7 +10,9 @@
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@inquirer/prompts": "^8.3.0",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^18",
+    "prettier": "^3.8.1",
     "tsx": "^4",
     "typescript": "^5",
     "vitest": "^2"
