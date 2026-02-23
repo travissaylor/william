@@ -17,6 +17,30 @@ import { migrateWorkspaces } from './migrate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+export function buildPrdPrompt(options: { description?: string; output?: string }): string {
+  const templatePath = path.join(__dirname, '..', 'templates', 'prd-instructions.md');
+  const template = fs.readFileSync(templatePath, 'utf-8');
+
+  let prompt = template;
+
+  prompt += '\n\n## Agent Instructions\n\n';
+  prompt += 'Wrap the final PRD in `<prd>...</prd>` XML tags so it can be extracted programmatically.\n';
+
+  if (options.output) {
+    prompt += `\nThe user specified an output path: \`${options.output}\`. Save the PRD to that path. Create parent directories if needed.\n`;
+  } else {
+    prompt += '\nNo output path was specified. The default save location is `prds/<feature-name>.md` (where feature-name is kebab-case derived from the PRD title). Create the `prds/` directory if it doesn\'t exist.\n';
+  }
+
+  if (options.description) {
+    prompt += `\n\n## Feature Description\n\n${options.description}`;
+  } else {
+    prompt += '\n\nNo feature description was provided. Start by asking the user to describe the feature they want to build.';
+  }
+
+  return prompt;
+}
+
 function readPackageVersion(): string {
   try {
     const pkgPath = path.join(__dirname, '..', 'package.json');
@@ -239,9 +263,18 @@ program
   .description('Generate a PRD by spawning an interactive Claude session')
   .argument('[description]', 'Feature description to include in the prompt')
   .option('-o, --output <path>', 'Output path for the generated PRD file')
-  .action(async (_description?: string, _options?: { output?: string }) => {
-    console.error('[william] prd command is not yet implemented');
-    process.exit(1);
+  .action(async (description?: string, options?: { output?: string }) => {
+    try {
+      const prompt = buildPrdPrompt({ description, output: options?.output });
+
+      // TODO: US-003 will spawn an interactive Claude session with this prompt
+      console.log(`[william] PRD prompt prepared (${prompt.length} chars)`);
+      console.error('[william] Claude session spawning is not yet implemented');
+      process.exit(1);
+    } catch (err) {
+      console.error(`[william] Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
   });
 
 program.parse();
