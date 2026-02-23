@@ -168,9 +168,11 @@ program
               const passed = storyValues.filter((s) => s.passes === true).length;
               const total = storyValues.length;
               const currentPart = status.currentStory ? `, current: ${status.currentStory}` : '';
-              const attemptsPart =
-                status.currentStory && status.state.stories[status.currentStory]
-                  ? `, attempts: ${status.state.stories[status.currentStory].attempts}`
+              const storyEntry = status.currentStory
+                  ? status.state.stories[status.currentStory]
+                  : undefined;
+              const attemptsPart = storyEntry
+                  ? `, attempts: ${storyEntry.attempts}`
                   : '';
               console.log(
                 `  ${ws} [${status.runningStatus}] — ${passed}/${total} complete${currentPart}${attemptsPart}`,
@@ -214,12 +216,11 @@ program
       }
 
       if (projectFilter) {
-        const workspaces = grouped[projectFilter];
-        if (!workspaces) {
+        if (!(projectFilter in grouped)) {
           console.log(`No workspaces found for project "${projectFilter}"`);
           return;
         }
-        printProjectGroup(projectFilter, workspaces);
+        printProjectGroup(projectFilter, grouped[projectFilter]);
       } else {
         for (const project of projectNames) {
           printProjectGroup(project, grouped[project]);
@@ -287,7 +288,7 @@ program
           stdio: ['pipe', 'inherit', 'inherit'],
           cwd: process.cwd(),
         });
-        child.stdin!.end(prompt);
+        child.stdin.end(prompt);
       } else {
         child = spawn('claude', [prompt], {
           stdio: 'inherit',
@@ -300,7 +301,7 @@ program
       });
 
       if (exitCode !== 0) {
-        console.error(`[william] Claude process exited with code ${exitCode}`);
+        console.error(`[william] Claude process exited with code ${exitCode ?? 'unknown'}`);
         process.exit(1);
       }
 

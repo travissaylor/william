@@ -2,8 +2,6 @@ import { EventEmitter } from 'events';
 import type {
   StreamMessage,
   StreamSession,
-  ToolUseBlock,
-  ToolResultBlock,
   ContentBlock,
 } from './types.js';
 
@@ -78,7 +76,7 @@ export class NdjsonParser extends EventEmitter {
       if (block.type === 'text') {
         this.session.fullText += block.text;
       } else if (block.type === 'tool_use') {
-        this.session.toolUses.push(block as ToolUseBlock);
+        this.session.toolUses.push(block);
       }
     }
   }
@@ -86,7 +84,7 @@ export class NdjsonParser extends EventEmitter {
   private extractUserContent(blocks: ContentBlock[]): void {
     for (const block of blocks) {
       if (block.type === 'tool_result') {
-        this.session.toolResults.push(block as ToolResultBlock);
+        this.session.toolResults.push(block);
       }
     }
   }

@@ -36,16 +36,16 @@ function normalizeHeading(heading: string): string {
  * Splits markdown into level-2 sections (## heading).
  * Content before the first ## heading is ignored.
  */
-function splitIntoSections(markdown: string): Array<{ heading: string; content: string }> {
+function splitIntoSections(markdown: string): { heading: string; content: string }[] {
   const lines = markdown.split('\n');
-  const sections: Array<{ heading: string; content: string }> = [];
+  const sections: { heading: string; content: string }[] = [];
   let currentHeading = '';
   let currentLines: string[] = [];
   let inSection = false;
 
   for (const line of lines) {
     // Match exactly ## heading (not ### or ####)
-    const h2Match = line.match(/^## (.+)$/);
+    const h2Match = /^## (.+)$/.exec(line);
     if (h2Match) {
       if (inSection) {
         sections.push({ heading: currentHeading, content: currentLines.join('\n').trim() });
@@ -76,13 +76,13 @@ function parseStoryContent(rawMarkdown: string): {
   let acceptanceCriteria: string[] = [];
 
   // Extract description: content after **Description:** up to next blank line or next **
-  const descMatch = rawMarkdown.match(/\*\*Description:\*\*\s*([\s\S]+?)(?=\n\n|\*\*[A-Z]|$)/);
+  const descMatch = /\*\*Description:\*\*\s*([\s\S]+?)(?=\n\n|\*\*[A-Z]|$)/.exec(rawMarkdown);
   if (descMatch) {
     description = descMatch[1].trim();
   }
 
   // Extract acceptance criteria: list items after **Acceptance Criteria:**
-  const criteriaMatch = rawMarkdown.match(/\*\*Acceptance Criteria:\*\*\s*\n([\s\S]+?)(?=\n\n\*\*|\n#{3,}|$)/);
+  const criteriaMatch = /\*\*Acceptance Criteria:\*\*\s*\n([\s\S]+?)(?=\n\n\*\*|\n#{3,}|$)/.exec(rawMarkdown);
   if (criteriaMatch) {
     acceptanceCriteria = criteriaMatch[1]
       .split('\n')
@@ -125,7 +125,7 @@ function parseStories(content: string): ParsedStory[] {
     const rawMarkdown = [headingLine, ...currentLines].join('\n').trim();
 
     const cleanedHeading = currentHeadingText.replace(/^✅\s*/, '').trim();
-    const storyIdMatch = cleanedHeading.match(/^(US-\d+):\s*(.+)$/);
+    const storyIdMatch = /^(US-\d+):\s*(.+)$/.exec(cleanedHeading);
 
     let id: string;
     let title: string;
@@ -145,7 +145,7 @@ function parseStories(content: string): ParsedStory[] {
 
   for (const line of lines) {
     // Match level 3–5 headings (###, ####, #####)
-    const headingMatch = line.match(/^(#{3,5})\s+(.+)$/);
+    const headingMatch = /^(#{3,5})\s+(.+)$/.exec(line);
     if (headingMatch) {
       const level = headingMatch[1].length;
       const headingText = headingMatch[2].trim();
@@ -191,7 +191,7 @@ export function parsePrd(markdown: string): ParsedPrd {
   };
 
   // Extract title from the first level-1 heading
-  const titleMatch = markdown.match(/^# (.+)$/m);
+  const titleMatch = /^# (.+)$/m.exec(markdown);
   if (titleMatch) {
     result.title = titleMatch[1].trim();
   }

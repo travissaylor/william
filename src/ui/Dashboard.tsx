@@ -16,7 +16,7 @@ function formatTokens(tokens: number): string {
   return String(tokens);
 }
 
-function renderProgressBar(completed: number, total: number, width: number = 10): string {
+function renderProgressBar(completed: number, total: number, width = 10): string {
   if (total === 0) return `[${'░'.repeat(width)}] 0/0`;
   const filled = Math.round((completed / total) * width);
   const empty = width - filled;
@@ -35,7 +35,7 @@ export function Dashboard({ data, startTime }: DashboardProps) {
     const interval = setInterval(() => {
       setElapsed(Date.now() - startTime);
     }, 1000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, [startTime]);
 
   const stuckColor = data.stuckStatus === 'normal' ? 'green'

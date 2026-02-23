@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { NdjsonParser } from './ndjson-parser.js';
+import type { StreamMessage } from './types.js';
 
 const SYSTEM_INIT = JSON.stringify({
   type: 'system',
@@ -200,8 +201,8 @@ describe('NdjsonParser', () => {
       parser.on('message', handler);
       parser.feed(SYSTEM_INIT + '\n' + ASSISTANT_TEXT + '\n');
       expect(handler).toHaveBeenCalledTimes(2);
-      expect(handler.mock.calls[0][0].type).toBe('system');
-      expect(handler.mock.calls[1][0].type).toBe('assistant');
+      expect((handler.mock.calls[0][0] as StreamMessage).type).toBe('system');
+      expect((handler.mock.calls[1][0] as StreamMessage).type).toBe('assistant');
     });
   });
 

@@ -11,13 +11,13 @@ function summarizeToolInput(toolName: string, input: Record<string, unknown>): s
     return cmd;
   }
   if (input.file_path && typeof input.file_path === 'string') {
-    return String(input.file_path);
+    return input.file_path;
   }
   if (input.pattern && typeof input.pattern === 'string') {
-    return String(input.pattern);
+    return input.pattern;
   }
   if (input.query && typeof input.query === 'string') {
-    const q = String(input.query);
+    const q = input.query;
     return q.length > 80 ? q.slice(0, 77) + '...' : q;
   }
   // Fallback: show first string-valued key
@@ -67,7 +67,7 @@ export function consumeStreamOutput(opts: ConsumeOpts): Promise<{ session: Strea
     }
 
     // Route system init messages to show model name in dashboard
-    if (msg.type === 'system' && msg.subtype === 'init') {
+    if (msg.type === 'system') {
       emitter.system(`[model: ${msg.model}]`);
     }
 

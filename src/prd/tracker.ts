@@ -73,7 +73,7 @@ export function incrementAttempts(state: WorkspaceState, storyId: string): Works
       ...state.stories,
       [storyId]: {
         ...existing,
-        attempts: (existing?.attempts ?? 0) + 1,
+        attempts: existing.attempts + 1,
         lastAttempt: new Date().toISOString(),
       } as StoryState,
     },

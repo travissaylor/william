@@ -15,7 +15,7 @@ export interface BuildContextOpts {
  * Returns everything from the heading line up to the next ## heading or end of string.
  */
 function extractCodebasePatterns(progressTxt: string): string {
-  const match = progressTxt.match(/^## Codebase Patterns\s*\n([\s\S]*?)(?=\n## |\n---|\s*$)/m);
+  const match = /^## Codebase Patterns\s*\n([\s\S]*?)(?=\n## |\n---|\s*$)/m.exec(progressTxt);
   if (!match) return '';
   return match[0].trim();
 }
@@ -44,7 +44,7 @@ function storyStatusSymbol(
   stories: WorkspaceState['stories'],
 ): string {
   if (storyId === currentStory) return '→';
-  const s = stories[storyId];
+  const s = stories[storyId] as WorkspaceState['stories'][string] | undefined;
   if (!s) return '·';
   if (s.passes === true) return '✓';
   if (s.passes === 'skipped') return '⊘';
@@ -70,7 +70,7 @@ export function buildContext(opts: BuildContextOpts): string {
     parts.push(rawMarkdown);
   } else {
     // Append non-empty top-level sections
-    const topSections: Array<[string, string]> = [
+    const topSections: [string, string][] = [
       ['## Introduction', parsedPrd.introduction],
       ['## Goals', parsedPrd.goals],
       ['## Non-Goals', parsedPrd.nonGoals],
@@ -99,7 +99,7 @@ export function buildContext(opts: BuildContextOpts): string {
     if (currentIdx > 0) {
       const prevCompleted = parsedPrd.stories
         .slice(0, currentIdx)
-        .filter((s) => state.stories[s.id]?.passes === true)
+        .filter((s) => state.stories[s.id].passes === true)
         .slice(-2);
       for (const story of prevCompleted) {
         parts.push(`## Previously Completed: ${story.id}\n\n${story.rawMarkdown}`);
@@ -117,7 +117,7 @@ export function buildContext(opts: BuildContextOpts): string {
     if (currentIdx !== -1) {
       for (const s of parsedPrd.stories.slice(currentIdx + 1)) {
         const st = state.stories[s.id];
-        if (!st || (st.passes !== true && st.passes !== 'skipped')) {
+        if (st.passes !== true && st.passes !== 'skipped') {
           upcoming.push(s);
           if (upcoming.length >= 2) break;
         }

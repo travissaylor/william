@@ -44,8 +44,8 @@ export function migrateWorkspaces(): void {
   fs.cpSync(workspacesDir, backupDir, { recursive: true });
 
   // Step 2: Migrate each flat workspace
-  const moved: Array<{ name: string; project: string }> = [];
-  const errors: Array<{ name: string; reason: string }> = [];
+  const moved: { name: string; project: string }[] = [];
+  const errors: { name: string; reason: string }[] = [];
 
   for (const name of entries) {
     const srcDir = path.join(workspacesDir, name);
@@ -55,7 +55,7 @@ export function migrateWorkspaces(): void {
     try {
       const raw = fs.readFileSync(statePath, 'utf-8');
       const state = JSON.parse(raw) as Partial<WorkspaceState>;
-      project = state.project || 'unknown';
+      project = state.project ?? 'unknown';
     } catch {
       project = 'unknown';
     }

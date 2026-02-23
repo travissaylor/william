@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, useStdout } from 'ink';
-import type { TuiEmitter, TuiEvent, DashboardData, ToolCallEvent, ResultEvent, StoryCompleteEvent, StorySkippedEvent, StoryStartEvent } from './events.js';
+import type { TuiEmitter, TuiEvent, DashboardData } from './events.js';
 import type { WorkspaceState } from '../types.js';
 import { Dashboard } from './Dashboard.js';
 import { LogArea } from './LogArea.js';
@@ -32,7 +32,7 @@ function deriveInitialDashboard(workspaceName: string, state: WorkspaceState, ma
     cumulativeCostUsd: 0,
     cumulativeInputTokens: 0,
     cumulativeOutputTokens: 0,
-    storyAttempts: state.currentStory ? (state.stories[state.currentStory]?.attempts ?? 0) : 0,
+    storyAttempts: state.currentStory ? state.stories[state.currentStory].attempts : 0,
     stuckStatus: 'normal',
     filesModified: 0,
   };
@@ -53,7 +53,7 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
 
   // Handle terminal resize
   useEffect(() => {
-    const onResize = () => setTerminalRows(stdout.rows || 24);
+    const onResize = () => { setTerminalRows(stdout.rows || 24); };
     stdout.on('resize', onResize);
     return () => {
       stdout.off('resize', onResize);
@@ -68,7 +68,7 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
       }
 
       if (event.type === 'result') {
-        const r = event as ResultEvent;
+        const r = event;
         setDashboard(prev => ({
           ...prev,
           cumulativeCostUsd: prev.cumulativeCostUsd + r.totalCostUsd,
@@ -91,7 +91,7 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
         // Build the log entry for story transition events or regular events
         const isStoryEvent = event.type === 'story-complete' || event.type === 'story-skipped' || event.type === 'story-start';
         const entryText = event.type === 'tool-call'
-          ? `  ▸ ${(event as ToolCallEvent).toolName}${(event as ToolCallEvent).toolInput ? ': ' + (event as ToolCallEvent).toolInput : ''}`
+          ? `  ▸ ${(event).toolName}${(event).toolInput ? ': ' + (event).toolInput : ''}`
           : isStoryEvent ? '' : (event as { text: string }).text;
 
         const newEntry: LogEntry = isStoryEvent
@@ -99,8 +99,8 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
               id: idRef.current++,
               type: event.type as LogEntry['type'],
               text: entryText,
-              storyId: (event as StoryCompleteEvent | StorySkippedEvent | StoryStartEvent).storyId,
-              storyTitle: (event as StoryCompleteEvent | StorySkippedEvent | StoryStartEvent).storyTitle,
+              storyId: (event).storyId,
+              storyTitle: (event).storyTitle,
             }
           : { id: idRef.current++, type: event.type, text: entryText };
 

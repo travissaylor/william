@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "eslint src/",
+    "lint:fix": "eslint --fix src/"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.3.0",
@@ -28,9 +30,13 @@
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^18",
+    "eslint": "^10.0.1",
+    "eslint-config-prettier": "^10.1.8",
+    "jiti": "^2.6.1",
     "prettier": "^3.8.1",
     "tsx": "^4",
     "typescript": "^5",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^2"
   }
 }

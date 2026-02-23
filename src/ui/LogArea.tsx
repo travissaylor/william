@@ -23,7 +23,7 @@ function LogEntryView({ entry }: { entry: LogEntry }) {
         'story-skipped': 'skipped',
         'story-start': 'start',
       };
-      return <StoryBanner kind={kindMap[entry.type]} storyId={entry.storyId!} storyTitle={entry.storyTitle!} />;
+      return <StoryBanner kind={kindMap[entry.type]} storyId={entry.storyId ?? ''} storyTitle={entry.storyTitle ?? ''} />;
     }
     case 'error':
       return <Text color="red">{entry.text}</Text>;

@@ -13,7 +13,7 @@ export interface ChainContext {
 }
 
 function extractFilePath(tu: ToolUseBlock): string | null {
-  const input = tu.input as Record<string, unknown>;
+  const input = tu.input;
   const fp = input.file_path ?? input.path;
   return typeof fp === 'string' ? fp : null;
 }
@@ -31,7 +31,7 @@ export function extractChainContext(session: StreamSession): ChainContext {
     } else if (tu.name === 'Read') {
       if (filePath) filesRead.add(filePath);
     } else if (tu.name === 'Bash') {
-      const cmd = (tu.input as Record<string, unknown>).command;
+      const cmd = (tu.input).command;
       if (typeof cmd === 'string') commandsRun.push(cmd);
     }
   }

@@ -34,7 +34,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 function extractCodebasePatterns(progressTxt: string): string {
-  const match = progressTxt.match(/^## Codebase Patterns\s*\n([\s\S]*?)(?=\n## |\n---|\s*$)/m);
+  const match = /^## Codebase Patterns\s*\n([\s\S]*?)(?=\n## |\n---|\s*$)/m.exec(progressTxt);
   return match ? match[0].trim() : '';
 }
 
@@ -52,8 +52,8 @@ function buildStoryTable(parsedStories: ReturnType<typeof parsePrd>['stories'], 
     .map((s) => {
       const st = state.stories[s.id];
       if (s.id === currentStory) return `→ ${s.id}: ${s.title}`;
-      if (st?.passes === true) return `✓ ${s.id}: ${s.title}`;
-      if (st?.passes === 'skipped') return `⊘ ${s.id}: ${s.title}`;
+      if (st.passes === true) return `✓ ${s.id}: ${s.title}`;
+      if (st.passes === 'skipped') return `⊘ ${s.id}: ${s.title}`;
       return `· ${s.id}: ${s.title}`;
     })
     .join('\n');
@@ -99,7 +99,7 @@ function writeStuckHint(
     .slice(0, 20);
   const filesModified = session.toolUses
     .filter((tu) => tu.name === 'Write' || tu.name === 'Edit')
-    .map((tu) => (tu.input as Record<string, unknown>).file_path as string)
+    .map((tu) => (tu.input).file_path as string)
     .filter(Boolean)
     .slice(0, 10);
 
@@ -146,7 +146,6 @@ function runStuckDetection(
   if (currentStoryId === null) return { action: 'continue' };
 
   const storyState = state.stories[currentStoryId];
-  if (!storyState) return { action: 'continue' };
 
   const attempts = storyState.attempts;
   const stuckHintPath = path.join(workspaceDir, '.stuck-hint.md');
@@ -305,7 +304,7 @@ export async function runWorkspace(workspaceName: string, workspaceDir: string, 
       const storyValues = Object.values(state.stories);
       const storyEntry = state.stories[currentStory];
       const hintExists = fs.existsSync(stuckHintPath);
-      const attempts = storyEntry?.attempts ?? 0;
+      const attempts = storyEntry.attempts;
       emitter.dashboardUpdate({
         workspaceName,
         storyId: currentStory,
@@ -351,7 +350,7 @@ export async function runWorkspace(workspaceName: string, workspaceDir: string, 
       lastChainContext = formatChainContextForPrompt(chainCtx, currentStory);
     } else {
       currentState = incrementAttempts(currentState, currentStory);
-      const attempts = currentState.stories[currentStory]?.attempts ?? 0;
+      const attempts = currentState.stories[currentStory].attempts;
       emitter.system(`[william] Story ${currentStory} not yet complete (attempts: ${attempts}).`);
     }
 
@@ -363,12 +362,12 @@ export async function runWorkspace(workspaceName: string, workspaceDir: string, 
 
     {
       const updatedValues = Object.values(currentState.stories);
-      const updatedAttempts = currentState.stories[currentStory]?.attempts ?? 0;
+      const updatedAttempts = currentState.stories[currentStory].attempts;
       const hintExists = fs.existsSync(stuckHintPath);
       const filesModified = new Set(
         session.toolUses
           .filter(tu => tu.name === 'Write' || tu.name === 'Edit')
-          .map(tu => (tu.input as Record<string, unknown>).file_path as string)
+          .map(tu => (tu.input).file_path as string)
           .filter(Boolean),
       ).size;
       emitter.dashboardUpdate({

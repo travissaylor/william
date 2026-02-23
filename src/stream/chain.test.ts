@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractChainContext, formatChainContextForPrompt } from './chain.js';
-import type { StreamSession, StreamAssistantMessage, StreamUserMessage, StreamResultMessage } from './types.js';
+import type { StreamSession, StreamAssistantMessage } from './types.js';
 
 function makeSession(overrides: Partial<StreamSession> = {}): StreamSession {
   return {
