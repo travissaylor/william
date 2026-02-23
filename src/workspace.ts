@@ -159,6 +159,38 @@ export function listWorkspaces(): string[] {
     .filter((entry) => fs.statSync(path.join(workspacesDir, entry)).isDirectory());
 }
 
+/**
+ * List workspaces grouped by project name.
+ * Returns a map of project name → workspace names.
+ */
+export function listGroupedWorkspaces(): Record<string, string[]> {
+  const workspacesDir = path.join(WILLIAM_ROOT, 'workspaces');
+  if (!fs.existsSync(workspacesDir)) {
+    return {};
+  }
+
+  const result: Record<string, string[]> = {};
+  const projectDirs = fs
+    .readdirSync(workspacesDir)
+    .filter((entry) => fs.statSync(path.join(workspacesDir, entry)).isDirectory());
+
+  for (const project of projectDirs) {
+    const projectPath = path.join(workspacesDir, project);
+    const workspaces = fs
+      .readdirSync(projectPath)
+      .filter((entry) => {
+        const full = path.join(projectPath, entry);
+        return fs.statSync(full).isDirectory() && fs.existsSync(path.join(full, 'state.json'));
+      });
+
+    if (workspaces.length > 0) {
+      result[project] = workspaces;
+    }
+  }
+
+  return result;
+}
+
 export interface WorkspaceStatus {
   name: string;
   state: WorkspaceState;

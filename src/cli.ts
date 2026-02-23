@@ -8,6 +8,7 @@ import {
   startWorkspace,
   stopWorkspace,
   listWorkspaces,
+  listGroupedWorkspaces,
   getWorkspaceStatus,
 } from './workspace.js';
 import { archiveWorkspace } from './archive.js';
@@ -168,21 +169,28 @@ program
   });
 
 program
-  .command('list')
-  .description('List all workspaces and their status (running / stopped / paused)')
-  .action(() => {
+  .command('list [project-name]')
+  .description('List workspaces grouped by project, optionally filtered to a single project')
+  .action((projectFilter?: string) => {
     try {
-      const names = listWorkspaces();
-      if (names.length === 0) {
+      const grouped = listGroupedWorkspaces();
+      const projectNames = Object.keys(grouped);
+
+      if (projectNames.length === 0) {
         console.log('No active workspaces.');
         return;
       }
-      for (const name of names) {
-        try {
-          const status = getWorkspaceStatus(name);
-          console.log(`${name} [${status.runningStatus}]`);
-        } catch {
-          console.log(`${name} [unknown]`);
+
+      if (projectFilter) {
+        const workspaces = grouped[projectFilter];
+        if (!workspaces) {
+          console.log(`No workspaces found for project "${projectFilter}"`);
+          return;
+        }
+        printProjectGroup(projectFilter, workspaces);
+      } else {
+        for (const project of projectNames) {
+          printProjectGroup(project, grouped[project]);
         }
       }
     } catch (err) {
@@ -190,5 +198,22 @@ program
       process.exit(1);
     }
   });
+
+function printProjectGroup(project: string, workspaces: string[]): void {
+  console.log(`${project}/`);
+  for (const ws of workspaces) {
+    try {
+      const status = getWorkspaceStatus(`${project}/${ws}`);
+      const storyValues = Object.values(status.state.stories);
+      const passed = storyValues.filter((s) => s.passes === true).length;
+      const total = storyValues.length;
+      const allDone = total > 0 && storyValues.every((s) => s.passes === true || s.passes === 'skipped');
+      const displayStatus = allDone ? 'completed' : status.runningStatus;
+      console.log(`  ${ws} [${displayStatus}] — ${passed}/${total}`);
+    } catch {
+      console.log(`  ${ws} [unknown]`);
+    }
+  }
+}
 
 program.parse();
