@@ -1,5 +1,6 @@
 node_modules/
 workspaces/
+workspaces-backup-*/
 archive/
 dist/
 *.js.map

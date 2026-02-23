@@ -14,6 +14,7 @@ import {
 import { archiveWorkspace } from './archive.js';
 import { ClaudeAdapter } from './adapters/claude.js';
 import { runNewWizard } from './wizard.js';
+import { migrateWorkspaces } from './migrate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -215,5 +216,17 @@ function printProjectGroup(project: string, workspaces: string[]): void {
     }
   }
 }
+
+program
+  .command('migrate')
+  .description('Migrate existing flat workspaces into project-grouped structure (one-time)')
+  .action(() => {
+    try {
+      migrateWorkspaces();
+    } catch (err) {
+      console.error(`[william] Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
 
 program.parse();
