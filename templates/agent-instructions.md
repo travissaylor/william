@@ -44,6 +44,12 @@ Use the commands that exist in the project's `package.json`. If a check is not c
 
 ---
 
+## Docs Reminder
+
+If your changes affect behavior described in `CLAUDE.md` or the `docs/` directory, update the relevant docs to keep them accurate.
+
+---
+
 ## Commit Instructions
 
 Once all checks pass, commit your changes:
