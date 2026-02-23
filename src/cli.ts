@@ -2,6 +2,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 import { Command } from 'commander';
 import {
   createWorkspace,
@@ -267,10 +268,30 @@ program
     try {
       const prompt = buildPrdPrompt({ description, output: options?.output });
 
-      // TODO: US-003 will spawn an interactive Claude session with this prompt
-      console.log(`[william] PRD prompt prepared (${prompt.length} chars)`);
-      console.error('[william] Claude session spawning is not yet implemented');
-      process.exit(1);
+      let child;
+
+      if (prompt.length > 100_000) {
+        // For very long prompts, pass via stdin
+        child = spawn('claude', [], {
+          stdio: ['pipe', 'inherit', 'inherit'],
+          cwd: process.cwd(),
+        });
+        child.stdin!.end(prompt);
+      } else {
+        child = spawn('claude', ['--prompt', prompt], {
+          stdio: 'inherit',
+          cwd: process.cwd(),
+        });
+      }
+
+      const exitCode = await new Promise<number | null>((resolve) => {
+        child.on('close', resolve);
+      });
+
+      if (exitCode !== 0) {
+        console.error(`[william] Claude process exited with code ${exitCode}`);
+        process.exit(1);
+      }
     } catch (err) {
       console.error(`[william] Error: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
