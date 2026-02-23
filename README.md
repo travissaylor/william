@@ -31,26 +31,35 @@ Verify: `william --help`
 ## Quick start
 
 ```sh
-william start my-feature \
-  --target ~/projects/my-app \
-  --prd ~/docs/my-feature-prd.md \
-  --branch feature/my-feature
+# 1. Create a workspace with the interactive wizard
+william new
+
+# 2. Start the iteration loop
+william start my-feature
 ```
 
-This creates a workspace, parses the PRD, and starts iterating through stories against your target project.
+The wizard prompts for the PRD file, target project directory, branch name, and project name. Once created, `william start` picks up the stored config and begins iterating through stories.
 
 ## Commands
 
+### `william new`
+
+Interactive wizard to create a new workspace. Prompts for:
+
+- **PRD file path** — must be a `.md` file
+- **Workspace name** — defaults to the PRD filename
+- **Target project directory** — must be a git repository
+- **Project name** — defaults to the target directory basename
+- **Branch name** — defaults to the workspace name
+
+The workspace is stored under `workspaces/<project>/<name>/`.
+
 ### `william start <workspace-name>`
 
-Create a workspace (or resume an existing one) and start the iteration loop.
+Start (or resume) an existing workspace. Create one first with `william new`.
 
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--target <dir>` | yes | Target project directory |
-| `--prd <file>` | yes | Path to PRD markdown file |
-| `--branch <name>` | yes | Git branch to work on |
-| `--project <name>` | no | Project name (defaults to target dir basename) |
 | `--max-iterations <n>` | no | Max iterations before stopping (default: 20) |
 | `--tool <adapter>` | no | AI tool adapter (default: `claude`) |
 
@@ -60,15 +69,28 @@ Gracefully stop a running workspace after the current iteration.
 
 ### `william status [workspace-name]`
 
-With a name: detailed story-by-story breakdown. Without: summary of all workspaces.
+With a name: detailed story-by-story breakdown. Without: summary of all workspaces grouped by project.
 
-### `william list`
+### `william list [project-name]`
 
-List all workspaces and their status (running / stopped / paused).
+List workspaces grouped by project. Optionally filter to a single project.
+
+```
+$ william list
+my-app/
+  auth-feature [completed] — 5/5
+  dark-mode [running] — 2/4
+other-project/
+  api-refactor [stopped] — 3/6
+```
 
 ### `william archive <workspace-name>`
 
 Archive a stopped workspace to `archive/`. Copies state, logs, progress, and the source PRD. Removes the workspace directory.
+
+### `william migrate`
+
+One-time migration to move existing flat workspaces (`workspaces/<name>/`) into the project-grouped structure (`workspaces/<project>/<name>/`). Creates a timestamped backup before migrating.
 
 ## PRD format
 
@@ -116,6 +138,13 @@ William runs a watchdog after every iteration. If the agent is failing repeatedl
 
 macOS desktop notifications fire on escalation events.
 
+## Workspace resolution
+
+Workspaces are stored in a project-grouped structure: `workspaces/<project>/<name>/`. When referencing a workspace, you can use either:
+
+- **Just the name** — `william start my-feature` (works if the name is unique across projects)
+- **Project/name** — `william start my-app/my-feature` (required if the name exists under multiple projects)
+
 ## Project layout
 
 ```
@@ -123,7 +152,9 @@ william/
 ├── src/
 │   ├── cli.ts              # CLI entry point
 │   ├── runner.ts            # Core iteration loop
-│   ├── workspace.ts         # Workspace lifecycle
+│   ├── workspace.ts         # Workspace lifecycle & resolution
+│   ├── wizard.ts            # Interactive workspace creation wizard
+│   ├── migrate.ts           # Flat → grouped migration
 │   ├── archive.ts           # Archive system
 │   ├── watchdog.ts          # Stuck detection
 │   ├── notifier.ts          # macOS notifications
@@ -139,6 +170,8 @@ william/
 ├── templates/
 │   └── agent-instructions.md   # Agent prompt template
 ├── workspaces/              # Runtime state (gitignored)
+│   └── <project>/
+│       └── <workspace>/     # Individual workspace state
 └── archive/                 # Archived workspaces (gitignored)
 ```
 
