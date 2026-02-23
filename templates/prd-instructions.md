@@ -215,6 +215,10 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 
 ---
 
+## Docs Reminder
+
+If the feature changes existing documented behavior, consider adding a user story or acceptance criterion for updating `CLAUDE.md` or relevant files in `docs/`.
+
 ## Checklist
 
 Before saving the PRD:
