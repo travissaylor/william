@@ -1,7 +1,7 @@
-import React from 'react';
-import { Text } from 'ink';
-import { marked } from 'marked';
-import { markedTerminal } from 'marked-terminal';
+import React from "react";
+import { Text } from "ink";
+import { marked } from "marked";
+import { markedTerminal } from "marked-terminal";
 
 // Configure marked with terminal renderer once
 marked.use(markedTerminal());
@@ -15,7 +15,7 @@ export function renderMarkdown(input: string): string {
   // extensions it always returns string synchronously.
   const rendered = marked.parse(input) as string;
   // Trim trailing newlines that marked-terminal tends to add
-  return rendered.replace(/\n+$/, '');
+  return rendered.replace(/\n+$/, "");
 }
 
 export function MarkdownText({ children }: { children: string }) {

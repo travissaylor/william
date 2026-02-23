@@ -1,5 +1,5 @@
-import type { ChildProcess } from 'child_process';
-import type { StreamSession } from '../stream/types.js';
+import type { ChildProcess } from "child_process";
+import type { StreamSession } from "../stream/types.js";
 
 export interface AdapterResult {
   storyComplete: boolean;

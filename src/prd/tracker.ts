@@ -1,6 +1,6 @@
-import * as fs from 'fs';
-import { WorkspaceState, StoryState } from '../types.js';
-import { ParsedPrd } from './parser.js';
+import * as fs from "fs";
+import { WorkspaceState, StoryState } from "../types.js";
+import { ParsedPrd } from "./parser.js";
 
 export interface InitStateOpts {
   workspace: string;
@@ -11,12 +11,12 @@ export interface InitStateOpts {
 }
 
 export function loadState(statePath: string): WorkspaceState {
-  const raw = fs.readFileSync(statePath, 'utf-8');
+  const raw = fs.readFileSync(statePath, "utf-8");
   return JSON.parse(raw) as WorkspaceState;
 }
 
 export function saveState(statePath: string, state: WorkspaceState): void {
-  fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf-8');
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2), "utf-8");
 }
 
 export function getCurrentStory(state: WorkspaceState): string | null {
@@ -28,7 +28,10 @@ export function getCurrentStory(state: WorkspaceState): string | null {
   return null;
 }
 
-export function markStoryComplete(state: WorkspaceState, storyId: string): WorkspaceState {
+export function markStoryComplete(
+  state: WorkspaceState,
+  storyId: string,
+): WorkspaceState {
   const updated: WorkspaceState = {
     ...state,
     stories: {
@@ -55,7 +58,7 @@ export function markStorySkipped(
       ...state.stories,
       [storyId]: {
         ...state.stories[storyId],
-        passes: 'skipped',
+        passes: "skipped",
         skipReason: reason,
         completedAt: new Date().toISOString(),
       } as StoryState,
@@ -65,7 +68,10 @@ export function markStorySkipped(
   return updated;
 }
 
-export function incrementAttempts(state: WorkspaceState, storyId: string): WorkspaceState {
+export function incrementAttempts(
+  state: WorkspaceState,
+  storyId: string,
+): WorkspaceState {
   const existing = state.stories[storyId];
   return {
     ...state,
@@ -80,7 +86,10 @@ export function incrementAttempts(state: WorkspaceState, storyId: string): Works
   };
 }
 
-export function initStateFromPrd(parsedPrd: ParsedPrd, opts: InitStateOpts): WorkspaceState {
+export function initStateFromPrd(
+  parsedPrd: ParsedPrd,
+  opts: InitStateOpts,
+): WorkspaceState {
   const stories: Record<string, StoryState> = {};
   for (const story of parsedPrd.stories) {
     stories[story.id] = { passes: false, attempts: 0 };

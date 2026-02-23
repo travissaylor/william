@@ -54,6 +54,7 @@ git commit -m "[{{story_title}}]"
 ```
 
 Rules:
+
 - Commit message must be exactly `[{{story_title}}]`
 - Do **not** include a `Co-Authored-By` trailer
 - Do **not** stage or commit files from the orchestrator repository — only files in the target project
@@ -101,11 +102,13 @@ You may include a brief note about what you implemented or any patterns you disc
 After completing and committing {{story_id}}, output **exactly one** of the following XML tags on its own line:
 
 - If {{story_id}} now passes all checks and **other stories remain incomplete**:
+
   ```
   <promise>STORY_COMPLETE</promise>
   ```
 
 - If {{story_id}} now passes all checks and **all stories are complete**:
+
   ```
   <promise>ALL_COMPLETE</promise>
   ```

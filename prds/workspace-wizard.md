@@ -15,9 +15,11 @@ The `william start` command currently requires too many flags (`--target`, `--pr
 ## User Stories
 
 ### US-001: Add `william new` command with interactive wizard
+
 **Description:** As a user, I want to run `william new` and answer a series of prompts so that my workspace is fully configured without remembering CLI flags.
 
 **Acceptance Criteria:**
+
 - [ ] Running `william new` launches an interactive prompt sequence using `@inquirer/prompts`
 - [ ] Wizard asks in this order: PRD path, workspace name, target project directory, project name, branch name
 - [ ] Workspace name defaults to the PRD filename without the `.md` extension (e.g., `prds/beautiful-tui.md` → `beautiful-tui`)
@@ -30,9 +32,11 @@ The `william start` command currently requires too many flags (`--target`, `--pr
 - [ ] Typecheck/lint passes
 
 ### US-002: Create workspace directory in project-grouped structure
+
 **Description:** As a user, I want my workspaces organized under their project name so that I can easily find related workspaces later.
 
 **Acceptance Criteria:**
+
 - [ ] `william new` creates the workspace at `workspaces/{project-name}/{workspace-name}/`
 - [ ] The workspace directory contains `state.json`, `progress.txt`, and `logs/` as before
 - [ ] `state.json` stores all wizard-provided config: workspace name, project name, target dir, branch name, PRD source path
@@ -42,9 +46,11 @@ The `william start` command currently requires too many flags (`--target`, `--pr
 - [ ] Typecheck/lint passes
 
 ### US-003: Update `william start` to use stored workspace config
+
 **Description:** As a user, I want to run `william start <workspace-name>` with no required flags so that starting work is fast and simple.
 
 **Acceptance Criteria:**
+
 - [ ] `william start <workspace-name>` locates the workspace by scanning `workspaces/{project}/{workspace-name}/` directories
 - [ ] If the workspace name is ambiguous (exists under multiple projects), print an error listing the matches and ask the user to specify `william start <project>/<workspace>`
 - [ ] `william start` also accepts `<project-name>/<workspace-name>` for explicit targeting
@@ -54,9 +60,11 @@ The `william start` command currently requires too many flags (`--target`, `--pr
 - [ ] Typecheck/lint passes
 
 ### US-004: Update `william list` to show project-grouped workspaces
+
 **Description:** As a user, I want `william list` to show workspaces grouped by project so I can see how my work is organized.
 
 **Acceptance Criteria:**
+
 - [ ] `william list` displays workspaces grouped under project name headers
 - [ ] Each workspace entry shows: name, status (running/stopped/paused/completed), story progress (e.g., 3/5)
 - [ ] `william list <project-name>` filters to only show workspaces under that project
@@ -64,9 +72,11 @@ The `william start` command currently requires too many flags (`--target`, `--pr
 - [ ] Typecheck/lint passes
 
 ### US-005: Migrate existing workspaces to new directory structure
+
 **Description:** As a developer, I want a migration script that moves existing flat workspaces into the project-grouped structure so that no data is lost.
 
 **Acceptance Criteria:**
+
 - [ ] A script (e.g., `src/migrate.ts` or a `william migrate` command) handles the migration
 - [ ] Before any changes, creates a full backup of `workspaces/` at `workspaces-backup-{timestamp}/`
 - [ ] For each existing workspace in `workspaces/<name>/`, reads `state.json` to get the `project` field
@@ -77,9 +87,11 @@ The `william start` command currently requires too many flags (`--target`, `--pr
 - [ ] Typecheck/lint passes
 
 ### US-006: Update `william status` and `william stop` for new structure
+
 **Description:** As a user, I want `status` and `stop` commands to work with the new project-grouped directory layout.
 
 **Acceptance Criteria:**
+
 - [ ] `william status` shows all workspaces across all projects with project grouping
 - [ ] `william status <workspace-name>` finds the workspace by scanning project directories (same lookup as `start`)
 - [ ] `william status <project>/<workspace>` works for explicit targeting

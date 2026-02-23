@@ -58,10 +58,10 @@ The workspace is stored under `workspaces/<project>/<name>/`.
 
 Start (or resume) an existing workspace. Create one first with `william new`.
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--max-iterations <n>` | no | Max iterations before stopping (default: 20) |
-| `--tool <adapter>` | no | AI tool adapter (default: `claude`) |
+| Flag                   | Required | Description                                  |
+| ---------------------- | -------- | -------------------------------------------- |
+| `--max-iterations <n>` | no       | Max iterations before stopping (default: 20) |
+| `--tool <adapter>`     | no       | AI tool adapter (default: `claude`)          |
 
 ### `william stop <workspace-name>`
 
@@ -100,29 +100,37 @@ William parses these markdown sections from your PRD file:
 # Feature Name
 
 ## Introduction
+
 What this feature is and why it matters.
 
 ## Goals
+
 - Goal 1
 - Goal 2
 
 ## Non-Goals
+
 - Out of scope item
 
 ## Technical Considerations
+
 Implementation details, constraints.
 
 ## User Stories
 
 ### US-001: Story title
+
 **Description:** What needs to be built.
 **Acceptance Criteria:**
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 
 ### US-002: Another story
+
 **Description:** ...
 **Acceptance Criteria:**
+
 - [ ] ...
 ```
 

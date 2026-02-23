@@ -16,9 +16,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 ## User Stories
 
 ### US-001: Create Ink app shell and mount it from `william start`
+
 **Description:** As a developer, I want the `william start` command to render an Ink React app instead of raw `console.log` so that all output flows through a structured TUI layout.
 
 **Acceptance Criteria:**
+
 - [ ] New `src/ui/` directory with an Ink `<App>` root component
 - [ ] `william start` renders the Ink app using `render()` from ink
 - [ ] The Ink app receives workspace state, adapter, and run options as props or context
@@ -27,9 +29,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 - [ ] Typecheck passes
 
 ### US-002: Sticky dashboard header
+
 **Description:** As a user, I want a persistent header at the top of my terminal that always shows the current workspace status so I can glance at progress without scrolling.
 
 **Acceptance Criteria:**
+
 - [ ] Dashboard is always visible at the top of the terminal (does not scroll away)
 - [ ] Shows: workspace name, current story ID and title, iteration X/Y
 - [ ] Shows: progress bar with N/M stories completed (e.g., `[████░░░░░░] 3/8`)
@@ -42,9 +46,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 - [ ] Typecheck passes
 
 ### US-003: Thinking spinner
+
 **Description:** As a user, I want a visual spinner when Claude is processing so I know the system hasn't stalled.
 
 **Acceptance Criteria:**
+
 - [ ] An animated spinner (e.g., dots, braille, or similar) appears in the output area while waiting for Claude's response
 - [ ] Spinner shows text like "Claude is thinking..." or "Waiting for response..."
 - [ ] Spinner disappears and is replaced by actual content when Claude starts streaming text
@@ -53,9 +59,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 - [ ] Typecheck passes
 
 ### US-004: Color-coded output sections
+
 **Description:** As a user, I want different types of output visually distinguished by color so I can quickly scan what's happening.
 
 **Acceptance Criteria:**
+
 - [ ] Assistant text: default/white color
 - [ ] Tool calls: dimmed/gray with tool name highlighted (e.g., cyan)
 - [ ] Tool results: dimmed/gray (not shown in full — just a one-line summary)
@@ -66,9 +74,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 - [ ] Typecheck passes
 
 ### US-005: Markdown rendering in terminal
+
 **Description:** As a user, I want Claude's markdown output rendered with formatting (bold, headers, code blocks with syntax highlighting) so the output is readable.
 
 **Acceptance Criteria:**
+
 - [ ] Markdown headings rendered with bold/color
 - [ ] Code blocks rendered with syntax highlighting (use a library like `cli-highlight` or `cardinal`)
 - [ ] Inline code rendered with a distinct style (e.g., dim background or different color)
@@ -79,9 +89,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 - [ ] Typecheck passes
 
 ### US-006: Scrolling log area
+
 **Description:** As a user, I want the streaming output to appear in a scrollable region below the dashboard so I can see recent activity without the header scrolling away.
 
 **Acceptance Criteria:**
+
 - [ ] Output area fills the remaining terminal height below the dashboard header
 - [ ] New output appears at the bottom and scrolls up naturally
 - [ ] The dashboard header remains fixed/sticky at the top
@@ -90,9 +102,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 - [ ] Typecheck passes
 
 ### US-007: Wire stream events to TUI state
+
 **Description:** As a developer, I want the NDJSON stream events to update the TUI's React state so the UI reflects real-time activity.
 
 **Acceptance Criteria:**
+
 - [ ] `consumeStreamOutput` emits events (via its existing `onMessage` callback) that the TUI consumes
 - [ ] Assistant text blocks are accumulated and rendered as markdown in the log area
 - [ ] Tool use events update a "current tool" indicator and/or log a summary line
@@ -102,9 +116,11 @@ Replace the plain `console.log` output of `william start` with a rich Terminal U
 - [ ] Typecheck passes
 
 ### US-008: Story transition display
+
 **Description:** As a user, I want clear visual separation when the agent moves from one story to the next so I can tell where one story's work ends and the next begins.
 
 **Acceptance Criteria:**
+
 - [ ] When a story completes, a green banner/divider appears: `✓ US-001: [title] — COMPLETE`
 - [ ] When a story is skipped, a yellow banner appears: `⊘ US-003: [title] — SKIPPED`
 - [ ] When a new story starts, a header/divider appears: `→ Starting US-002: [title]`

@@ -1,10 +1,10 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-import type { WorkspaceState } from './types.js';
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
+import type { WorkspaceState } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const WILLIAM_ROOT = path.resolve(__dirname, '..');
+const WILLIAM_ROOT = path.resolve(__dirname, "..");
 
 /**
  * Migrate existing flat workspaces (workspaces/<name>/) into
@@ -16,10 +16,10 @@ const WILLIAM_ROOT = path.resolve(__dirname, '..');
  * 4. Prints a summary of what was moved
  */
 export function migrateWorkspaces(): void {
-  const workspacesDir = path.join(WILLIAM_ROOT, 'workspaces');
+  const workspacesDir = path.join(WILLIAM_ROOT, "workspaces");
 
   if (!fs.existsSync(workspacesDir)) {
-    console.log('No workspaces/ directory found. Nothing to migrate.');
+    console.log("No workspaces/ directory found. Nothing to migrate.");
     return;
   }
 
@@ -28,17 +28,17 @@ export function migrateWorkspaces(): void {
     const full = path.join(workspacesDir, entry);
     return (
       fs.statSync(full).isDirectory() &&
-      fs.existsSync(path.join(full, 'state.json'))
+      fs.existsSync(path.join(full, "state.json"))
     );
   });
 
   if (entries.length === 0) {
-    console.log('No flat workspaces found to migrate. Already up to date.');
+    console.log("No flat workspaces found to migrate. Already up to date.");
     return;
   }
 
   // Step 1: Create backup
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const backupDir = path.join(WILLIAM_ROOT, `workspaces-backup-${timestamp}`);
   console.log(`Backing up workspaces/ → ${path.basename(backupDir)}/`);
   fs.cpSync(workspacesDir, backupDir, { recursive: true });
@@ -49,21 +49,24 @@ export function migrateWorkspaces(): void {
 
   for (const name of entries) {
     const srcDir = path.join(workspacesDir, name);
-    const statePath = path.join(srcDir, 'state.json');
+    const statePath = path.join(srcDir, "state.json");
 
     let project: string;
     try {
-      const raw = fs.readFileSync(statePath, 'utf-8');
+      const raw = fs.readFileSync(statePath, "utf-8");
       const state = JSON.parse(raw) as Partial<WorkspaceState>;
-      project = state.project ?? 'unknown';
+      project = state.project ?? "unknown";
     } catch {
-      project = 'unknown';
+      project = "unknown";
     }
 
     const destDir = path.join(workspacesDir, project, name);
 
     if (fs.existsSync(destDir)) {
-      errors.push({ name, reason: `destination already exists: ${project}/${name}` });
+      errors.push({
+        name,
+        reason: `destination already exists: ${project}/${name}`,
+      });
       continue;
     }
 
@@ -91,7 +94,7 @@ export function migrateWorkspaces(): void {
 }
 
 // Allow running directly with `tsx src/migrate.ts`
-const isDirectRun = process.argv[1]?.endsWith('migrate.ts');
+const isDirectRun = process.argv[1]?.endsWith("migrate.ts");
 if (isDirectRun) {
   migrateWorkspaces();
 }

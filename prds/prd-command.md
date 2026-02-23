@@ -15,9 +15,11 @@ Creating PRDs for william workspaces is currently a manual process — users wri
 ## User Stories
 
 ### US-001: Register `william prd` command in CLI
+
 **Description:** As a user, I want to run `william prd` so that I can generate a PRD without leaving the terminal.
 
 **Acceptance Criteria:**
+
 - [ ] `william prd` is registered as a new command in `src/cli.ts`
 - [ ] The command accepts an optional positional argument: `william prd [description]`
 - [ ] The command accepts an `--output <path>` option
@@ -25,9 +27,11 @@ Creating PRDs for william workspaces is currently a manual process — users wri
 - [ ] Typecheck/lint passes
 
 ### US-002: Load and prepare the PRD instructions prompt
+
 **Description:** As a developer, I need to read the PRD instructions template and combine it with the user's feature description so that Claude receives a complete prompt.
 
 **Acceptance Criteria:**
+
 - [ ] Reads `templates/prd-instructions.md` from the william project root (relative to `src/cli.ts`, i.e., `path.join(__dirname, '..', 'templates', 'prd-instructions.md')`)
 - [ ] If a feature description is provided as a positional argument, it is appended to the prompt as: `\n\n## Feature Description\n\n<user's description>`
 - [ ] If no description is provided, the prompt instructs Claude to ask the user for a feature description first
@@ -36,9 +40,11 @@ Creating PRDs for william workspaces is currently a manual process — users wri
 - [ ] Typecheck/lint passes
 
 ### US-003: Spawn interactive Claude session
+
 **Description:** As a user, I want the Claude agent to interactively ask me clarifying questions and generate the PRD in my terminal.
 
 **Acceptance Criteria:**
+
 - [ ] The command spawns Claude using `child_process.spawn` with `claude` CLI in interactive mode (no `--output-format stream-json`, no `--dangerously-skip-permissions`)
 - [ ] The prompt is passed via `--prompt` flag (or via stdin if the prompt is too long — over 100K characters)
 - [ ] Claude's stdin, stdout, and stderr are inherited (`stdio: 'inherit'`) so the user can interact directly
@@ -48,9 +54,11 @@ Creating PRDs for william workspaces is currently a manual process — users wri
 - [ ] Typecheck/lint passes
 
 ### US-004: Extract and save the PRD file
+
 **Description:** As a user, I want the generated PRD to be saved to disk automatically so I don't have to copy-paste from the terminal.
 
 **Acceptance Criteria:**
+
 - [ ] After the Claude session exits, if `--output` was specified, the PRD is already saved by Claude (via the instructions telling it to save)
 - [ ] Alternative approach: The prompt instructs Claude to write the PRD file directly using its file-writing capabilities, to the path determined by `--output` flag or the user's interactive choice (default: `prds/<feature-name>.md`)
 - [ ] The `prds/` directory is created if it doesn't exist
@@ -58,9 +66,11 @@ Creating PRDs for william workspaces is currently a manual process — users wri
 - [ ] Typecheck/lint passes
 
 ### US-005: Update PRD instructions template for agent use
+
 **Description:** As a developer, I need to update the PRD instructions template so it works well when used as a Claude agent prompt (clear instructions for the agent, extraction-friendly output, file-saving behavior).
 
 **Acceptance Criteria:**
+
 - [ ] The template begins with a clear role instruction: "You are a PRD generator. Your job is to help the user create a structured Product Requirements Document."
 - [ ] The template includes instructions for Claude to write the final PRD to disk using its file-writing tools
 - [ ] The template specifies that the output path will be provided in the prompt, and Claude should create parent directories if needed

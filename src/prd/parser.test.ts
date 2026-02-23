@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { parsePrd } from './parser.js';
+import { describe, it, expect } from "vitest";
+import { parsePrd } from "./parser.js";
 
 // Small PRD (< 10KB) with all optional sections populated
 const SMALL_PRD_WITH_ALL_SECTIONS = `# PRD: Test Feature
@@ -263,138 +263,140 @@ This PRD outlines a phased approach to progressively load data, implement server
 
 Paginated queries should use OFFSET/LIMIT or cursor-based patterns. Add database indexes if needed for common filter combinations such as revision_change(revision_comparison_id, change_status) and revision_drawing(revision_analysis_id, discipline). Use COUNT(*) with same filters for total_count and consider caching for large datasets. The SearchRevisionAnalysesController has an existing pagination pattern to follow when implementing new paginated endpoints.`;
 
-  const byteLen = Buffer.byteLength(base, 'utf8');
+  const byteLen = Buffer.byteLength(base, "utf8");
   if (byteLen < 10_241) {
-    return base + '\n\n' + ' '.repeat(10_241 - byteLen);
+    return base + "\n\n" + " ".repeat(10_241 - byteLen);
   }
   return base;
 }
 
 const LARGE_PRD_MARKDOWN = buildLargePrd();
 
-describe('parsePrd', () => {
-  describe('small PRD with all sections', () => {
-    it('extracts the document title from the H1 heading', () => {
+describe("parsePrd", () => {
+  describe("small PRD with all sections", () => {
+    it("extracts the document title from the H1 heading", () => {
       const result = parsePrd(SMALL_PRD_WITH_ALL_SECTIONS);
-      expect(result.title).toBe('PRD: Test Feature');
+      expect(result.title).toBe("PRD: Test Feature");
     });
 
-    it('populates all section fields with non-empty content', () => {
+    it("populates all section fields with non-empty content", () => {
       const result = parsePrd(SMALL_PRD_WITH_ALL_SECTIONS);
-      expect(result.introduction).not.toBe('');
-      expect(result.goals).not.toBe('');
-      expect(result.nonGoals).not.toBe('');
-      expect(result.technicalConsiderations).not.toBe('');
-      expect(result.functionalRequirements).not.toBe('');
-      expect(result.designConsiderations).not.toBe('');
-      expect(result.successMetrics).not.toBe('');
-      expect(result.openQuestions).not.toBe('');
+      expect(result.introduction).not.toBe("");
+      expect(result.goals).not.toBe("");
+      expect(result.nonGoals).not.toBe("");
+      expect(result.technicalConsiderations).not.toBe("");
+      expect(result.functionalRequirements).not.toBe("");
+      expect(result.designConsiderations).not.toBe("");
+      expect(result.successMetrics).not.toBe("");
+      expect(result.openQuestions).not.toBe("");
     });
 
-    it('parses stories with correct count and IDs', () => {
+    it("parses stories with correct count and IDs", () => {
       const result = parsePrd(SMALL_PRD_WITH_ALL_SECTIONS);
       expect(result.stories).toHaveLength(2);
-      expect(result.stories[0].id).toBe('US-001');
-      expect(result.stories[1].id).toBe('US-002');
+      expect(result.stories[0].id).toBe("US-001");
+      expect(result.stories[1].id).toBe("US-002");
     });
 
-    it('extracts story titles correctly', () => {
+    it("extracts story titles correctly", () => {
       const result = parsePrd(SMALL_PRD_WITH_ALL_SECTIONS);
-      expect(result.stories[0].title).toBe('First user story');
-      expect(result.stories[1].title).toBe('Second user story');
+      expect(result.stories[0].title).toBe("First user story");
+      expect(result.stories[1].title).toBe("Second user story");
     });
 
-    it('extracts story description and acceptance criteria', () => {
+    it("extracts story description and acceptance criteria", () => {
       const result = parsePrd(SMALL_PRD_WITH_ALL_SECTIONS);
       const story = result.stories[0];
-      expect(story.description).toContain('As a user');
+      expect(story.description).toContain("As a user");
       expect(story.acceptanceCriteria).toHaveLength(2);
-      expect(story.acceptanceCriteria[0]).toContain('Criteria one is met');
+      expect(story.acceptanceCriteria[0]).toContain("Criteria one is met");
     });
 
-    it('includes full rawMarkdown for each story', () => {
+    it("includes full rawMarkdown for each story", () => {
       const result = parsePrd(SMALL_PRD_WITH_ALL_SECTIONS);
-      expect(result.stories[0].rawMarkdown).toContain('US-001');
-      expect(result.stories[0].rawMarkdown).toContain('Acceptance Criteria');
+      expect(result.stories[0].rawMarkdown).toContain("US-001");
+      expect(result.stories[0].rawMarkdown).toContain("Acceptance Criteria");
     });
   });
 
-  describe('large PRD with phases (prd-revision-analysis-performance.md structure)', () => {
-    it('parses exactly 13 stories', () => {
+  describe("large PRD with phases (prd-revision-analysis-performance.md structure)", () => {
+    it("parses exactly 13 stories", () => {
       const result = parsePrd(LARGE_PRD_MARKDOWN);
       expect(result.stories).toHaveLength(13);
     });
 
-    it('assigns correct US-XXX IDs in sequential order', () => {
+    it("assigns correct US-XXX IDs in sequential order", () => {
       const result = parsePrd(LARGE_PRD_MARKDOWN);
       const ids = result.stories.map((s) => s.id);
       expect(ids).toEqual([
-        'US-001',
-        'US-002',
-        'US-003',
-        'US-004',
-        'US-005',
-        'US-006',
-        'US-007',
-        'US-008',
-        'US-009',
-        'US-010',
-        'US-011',
-        'US-012',
-        'US-013',
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007",
+        "US-008",
+        "US-009",
+        "US-010",
+        "US-011",
+        "US-012",
+        "US-013",
       ]);
     });
 
-    it('skips phase headers and does not treat them as stories', () => {
+    it("skips phase headers and does not treat them as stories", () => {
       const result = parsePrd(LARGE_PRD_MARKDOWN);
       const titles = result.stories.map((s) => s.title);
       // Phase headers like "Phase 1: Narrative Page Optimization" should not appear as story titles
-      expect(titles).not.toContain('Narrative Page Optimization');
-      expect(titles).not.toContain('Visual Comparison Page Optimization');
-      expect(titles).not.toContain('Feature Flag and Code Separation');
-      expect(titles).not.toContain('Shared Infrastructure');
+      expect(titles).not.toContain("Narrative Page Optimization");
+      expect(titles).not.toContain("Visual Comparison Page Optimization");
+      expect(titles).not.toContain("Feature Flag and Code Separation");
+      expect(titles).not.toContain("Shared Infrastructure");
     });
 
-    it('extracts non-goals section from large PRD', () => {
+    it("extracts non-goals section from large PRD", () => {
       const result = parsePrd(LARGE_PRD_MARKDOWN);
-      expect(result.nonGoals).toContain('No changes to the revision analysis processing pipeline');
+      expect(result.nonGoals).toContain(
+        "No changes to the revision analysis processing pipeline",
+      );
     });
   });
 
-  describe('stories without explicit US-XXX IDs', () => {
-    it('assigns sequential IDs starting from US-001', () => {
+  describe("stories without explicit US-XXX IDs", () => {
+    it("assigns sequential IDs starting from US-001", () => {
       const result = parsePrd(PRD_WITH_NO_IDS);
       expect(result.stories).toHaveLength(3);
-      expect(result.stories[0].id).toBe('US-001');
-      expect(result.stories[1].id).toBe('US-002');
-      expect(result.stories[2].id).toBe('US-003');
+      expect(result.stories[0].id).toBe("US-001");
+      expect(result.stories[1].id).toBe("US-002");
+      expect(result.stories[2].id).toBe("US-003");
     });
 
-    it('uses the heading text as the story title', () => {
+    it("uses the heading text as the story title", () => {
       const result = parsePrd(PRD_WITH_NO_IDS);
-      expect(result.stories[0].title).toBe('Create the table');
-      expect(result.stories[1].title).toBe('Seed the data');
-      expect(result.stories[2].title).toBe('Write the tests');
+      expect(result.stories[0].title).toBe("Create the table");
+      expect(result.stories[1].title).toBe("Seed the data");
+      expect(result.stories[2].title).toBe("Write the tests");
     });
   });
 
-  describe('missing optional sections', () => {
-    it('defaults designConsiderations to empty string when section is absent', () => {
+  describe("missing optional sections", () => {
+    it("defaults designConsiderations to empty string when section is absent", () => {
       const result = parsePrd(PRD_MISSING_OPTIONAL_SECTIONS);
-      expect(result.designConsiderations).toBe('');
+      expect(result.designConsiderations).toBe("");
     });
 
-    it('defaults openQuestions to empty string when section is absent', () => {
+    it("defaults openQuestions to empty string when section is absent", () => {
       const result = parsePrd(PRD_MISSING_OPTIONAL_SECTIONS);
-      expect(result.openQuestions).toBe('');
+      expect(result.openQuestions).toBe("");
     });
 
-    it('does not crash and still parses present sections', () => {
+    it("does not crash and still parses present sections", () => {
       const result = parsePrd(PRD_MISSING_OPTIONAL_SECTIONS);
-      expect(result.title).toBe('PRD: Minimal Feature');
-      expect(result.introduction).not.toBe('');
+      expect(result.title).toBe("PRD: Minimal Feature");
+      expect(result.introduction).not.toBe("");
       expect(result.stories).toHaveLength(1);
-      expect(result.stories[0].id).toBe('US-001');
+      expect(result.stories[0].id).toBe("US-001");
     });
   });
 });

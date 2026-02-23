@@ -1,4 +1,4 @@
-import type { StreamSession, ToolUseBlock } from './types.js';
+import type { StreamSession, ToolUseBlock } from "./types.js";
 
 export interface ChainContext {
   filesModified: string[];
@@ -15,7 +15,7 @@ export interface ChainContext {
 function extractFilePath(tu: ToolUseBlock): string | null {
   const input = tu.input;
   const fp = input.file_path ?? input.path;
-  return typeof fp === 'string' ? fp : null;
+  return typeof fp === "string" ? fp : null;
 }
 
 export function extractChainContext(session: StreamSession): ChainContext {
@@ -26,13 +26,13 @@ export function extractChainContext(session: StreamSession): ChainContext {
   for (const tu of session.toolUses) {
     const filePath = extractFilePath(tu);
 
-    if (tu.name === 'Write' || tu.name === 'Edit') {
+    if (tu.name === "Write" || tu.name === "Edit") {
       if (filePath) filesModified.add(filePath);
-    } else if (tu.name === 'Read') {
+    } else if (tu.name === "Read") {
       if (filePath) filesRead.add(filePath);
-    } else if (tu.name === 'Bash') {
-      const cmd = (tu.input).command;
-      if (typeof cmd === 'string') commandsRun.push(cmd);
+    } else if (tu.name === "Bash") {
+      const cmd = tu.input.command;
+      if (typeof cmd === "string") commandsRun.push(cmd);
     }
   }
 
@@ -46,9 +46,9 @@ export function extractChainContext(session: StreamSession): ChainContext {
   // Extract last few assistant text blocks as key decisions
   const keyDecisions: string[] = [];
   for (const event of session.events) {
-    if (event.type === 'assistant') {
+    if (event.type === "assistant") {
       for (const block of event.message.content) {
-        if (block.type === 'text' && block.text.trim()) {
+        if (block.type === "text" && block.text.trim()) {
           keyDecisions.push(block.text.trim());
         }
       }
@@ -68,51 +68,54 @@ export function extractChainContext(session: StreamSession): ChainContext {
   };
 }
 
-export function formatChainContextForPrompt(ctx: ChainContext, storyId: string): string {
+export function formatChainContextForPrompt(
+  ctx: ChainContext,
+  storyId: string,
+): string {
   const parts: string[] = [];
   parts.push(`## Chain Context from ${storyId}`);
-  parts.push('');
+  parts.push("");
 
   if (ctx.filesModified.length > 0) {
-    parts.push('### Files Modified');
+    parts.push("### Files Modified");
     for (const f of ctx.filesModified.slice(0, 15)) {
       parts.push(`- \`${f}\``);
     }
-    parts.push('');
+    parts.push("");
   }
 
   if (ctx.filesRead.length > 0) {
-    parts.push('### Files Referenced');
+    parts.push("### Files Referenced");
     for (const f of ctx.filesRead.slice(0, 15)) {
       parts.push(`- \`${f}\``);
     }
-    parts.push('');
+    parts.push("");
   }
 
   if (ctx.commandsRun.length > 0) {
-    parts.push('### Commands Run');
+    parts.push("### Commands Run");
     for (const c of ctx.commandsRun.slice(0, 20)) {
       parts.push(`- \`${c.slice(0, 200)}\``);
     }
-    parts.push('');
+    parts.push("");
   }
 
   if (ctx.errors.length > 0) {
-    parts.push('### Errors Encountered');
+    parts.push("### Errors Encountered");
     for (const e of ctx.errors.slice(0, 10)) {
       parts.push(`- ${e.slice(0, 200)}`);
     }
-    parts.push('');
+    parts.push("");
   }
 
   if (ctx.keyDecisions.length > 0) {
-    parts.push('### Key Decisions');
+    parts.push("### Key Decisions");
     for (const d of ctx.keyDecisions.slice(0, 5)) {
       // Truncate long decision text
-      const truncated = d.length > 500 ? d.slice(0, 500) + '...' : d;
+      const truncated = d.length > 500 ? d.slice(0, 500) + "..." : d;
       parts.push(`- ${truncated}`);
     }
-    parts.push('');
+    parts.push("");
   }
 
   parts.push(`### Session Stats`);
@@ -120,5 +123,5 @@ export function formatChainContextForPrompt(ctx: ChainContext, storyId: string):
   parts.push(`- Tokens: ${ctx.inputTokens} in / ${ctx.outputTokens} out`);
   parts.push(`- Duration: ${(ctx.durationMs / 1000).toFixed(1)}s`);
 
-  return parts.join('\n');
+  return parts.join("\n");
 }

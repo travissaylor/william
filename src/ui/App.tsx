@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Box, useStdout } from 'ink';
-import type { TuiEmitter, TuiEvent, DashboardData } from './events.js';
-import type { WorkspaceState } from '../types.js';
-import { Dashboard } from './Dashboard.js';
-import { LogArea } from './LogArea.js';
-import type { LogEntry } from './LogArea.js';
+import React, { useState, useEffect, useRef } from "react";
+import { Box, useStdout } from "ink";
+import type { TuiEmitter, TuiEvent, DashboardData } from "./events.js";
+import type { WorkspaceState } from "../types.js";
+import { Dashboard } from "./Dashboard.js";
+import { LogArea } from "./LogArea.js";
+import type { LogEntry } from "./LogArea.js";
 
 /** Dashboard border (top + bottom) plus 2 content lines = 4 rows */
 const DASHBOARD_HEIGHT = 4;
@@ -18,58 +18,71 @@ export interface AppProps {
   maxIterations: number;
 }
 
-function deriveInitialDashboard(workspaceName: string, state: WorkspaceState, maxIterations: number): DashboardData {
+function deriveInitialDashboard(
+  workspaceName: string,
+  state: WorkspaceState,
+  maxIterations: number,
+): DashboardData {
   const storyValues = Object.values(state.stories);
   return {
     workspaceName,
     storyId: state.currentStory,
-    storyTitle: '',
+    storyTitle: "",
     iteration: 0,
     maxIterations,
-    storiesCompleted: storyValues.filter(s => s.passes === true).length,
+    storiesCompleted: storyValues.filter((s) => s.passes === true).length,
     storiesTotal: storyValues.length,
-    storiesSkipped: storyValues.filter(s => s.passes === 'skipped').length,
+    storiesSkipped: storyValues.filter((s) => s.passes === "skipped").length,
     cumulativeCostUsd: 0,
     cumulativeInputTokens: 0,
     cumulativeOutputTokens: 0,
-    storyAttempts: state.currentStory ? state.stories[state.currentStory].attempts : 0,
-    stuckStatus: 'normal',
+    storyAttempts: state.currentStory
+      ? state.stories[state.currentStory].attempts
+      : 0,
+    stuckStatus: "normal",
     filesModified: 0,
   };
 }
 
-export function App({ emitter, workspaceName, initialState, maxIterations }: AppProps) {
+export function App({
+  emitter,
+  workspaceName,
+  initialState,
+  maxIterations,
+}: AppProps) {
   const { stdout } = useStdout();
   const [terminalRows, setTerminalRows] = useState(stdout.rows || 24);
   const [entries, setEntries] = useState<LogEntry[]>([]);
-  const [liveText, setLiveText] = useState('');
+  const [liveText, setLiveText] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardData>(() =>
     deriveInitialDashboard(workspaceName, initialState, maxIterations),
   );
-  const liveTextRef = useRef('');
+  const liveTextRef = useRef("");
   const idRef = useRef(0);
   const startTimeRef = useRef(Date.now());
 
   // Handle terminal resize
   useEffect(() => {
-    const onResize = () => { setTerminalRows(stdout.rows || 24); };
-    stdout.on('resize', onResize);
+    const onResize = () => {
+      setTerminalRows(stdout.rows || 24);
+    };
+    stdout.on("resize", onResize);
     return () => {
-      stdout.off('resize', onResize);
+      stdout.off("resize", onResize);
     };
   }, [stdout]);
 
   useEffect(() => {
     const handler = (event: TuiEvent) => {
-      if (event.type === 'dashboard-update') {
+      if (event.type === "dashboard-update") {
         setDashboard(event.data);
         return;
       }
 
-      if (event.type === 'result') {
+      if (event.type === "result") {
         const r = event;
-        setDashboard(prev => ({
+        setDashboard((prev) => ({
           ...prev,
           cumulativeCostUsd: prev.cumulativeCostUsd + r.totalCostUsd,
           cumulativeInputTokens: prev.cumulativeInputTokens + r.inputTokens,
@@ -78,47 +91,57 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
         return;
       }
 
-      if (event.type === 'thinking') {
+      if (event.type === "thinking") {
         setIsThinking(event.isThinking);
         return;
       }
 
-      if (event.type === 'assistant-text') {
+      if (event.type === "assistant-text") {
         setIsThinking(false);
         liveTextRef.current += event.text;
         setLiveText(liveTextRef.current);
       } else {
         // Build the log entry for story transition events or regular events
-        const isStoryEvent = event.type === 'story-complete' || event.type === 'story-skipped' || event.type === 'story-start';
-        const entryText = event.type === 'tool-call'
-          ? `  ▸ ${(event).toolName}${(event).toolInput ? ': ' + (event).toolInput : ''}`
-          : isStoryEvent ? '' : (event as { text: string }).text;
+        const isStoryEvent =
+          event.type === "story-complete" ||
+          event.type === "story-skipped" ||
+          event.type === "story-start";
+        const entryText =
+          event.type === "tool-call"
+            ? `  ▸ ${event.toolName}${event.toolInput ? ": " + event.toolInput : ""}`
+            : isStoryEvent
+              ? ""
+              : (event as { text: string }).text;
 
         const newEntry: LogEntry = isStoryEvent
           ? {
               id: idRef.current++,
-              type: event.type as LogEntry['type'],
+              type: event.type as LogEntry["type"],
               text: entryText,
-              storyId: (event).storyId,
-              storyTitle: (event).storyTitle,
+              storyId: event.storyId,
+              storyTitle: event.storyTitle,
             }
           : { id: idRef.current++, type: event.type, text: entryText };
 
         // Commit any accumulated live text, then add the new event
         if (liveTextRef.current) {
           const committedText = liveTextRef.current;
-          liveTextRef.current = '';
-          setLiveText('');
-          setEntries(prev => {
+          liveTextRef.current = "";
+          setLiveText("");
+          setEntries((prev) => {
             const next = [
               ...prev,
-              { id: idRef.current++, type: 'assistant-text' as const, text: committedText },
+              {
+                id: idRef.current++,
+                type: "assistant-text" as const,
+                text: committedText,
+              },
               newEntry,
             ];
             return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next;
           });
         } else {
-          setEntries(prev => {
+          setEntries((prev) => {
             const next = [...prev, newEntry];
             return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next;
           });
@@ -126,9 +149,9 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
       }
     };
 
-    emitter.on('event', handler);
+    emitter.on("event", handler);
     return () => {
-      emitter.off('event', handler);
+      emitter.off("event", handler);
     };
   }, [emitter]);
 
@@ -137,7 +160,12 @@ export function App({ emitter, workspaceName, initialState, maxIterations }: App
   return (
     <Box flexDirection="column" height={terminalRows}>
       <Dashboard data={dashboard} startTime={startTimeRef.current} />
-      <LogArea entries={entries} liveText={liveText} isThinking={isThinking} height={logHeight} />
+      <LogArea
+        entries={entries}
+        liveText={liveText}
+        isThinking={isThinking}
+        height={logHeight}
+      />
     </Box>
   );
 }

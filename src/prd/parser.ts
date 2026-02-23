@@ -26,9 +26,9 @@ export interface ParsedPrd {
 function normalizeHeading(heading: string): string {
   return heading
     .toLowerCase()
-    .replace(/-/g, ' ')
-    .replace(/[^a-z\s]/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/-/g, " ")
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -36,10 +36,12 @@ function normalizeHeading(heading: string): string {
  * Splits markdown into level-2 sections (## heading).
  * Content before the first ## heading is ignored.
  */
-function splitIntoSections(markdown: string): { heading: string; content: string }[] {
-  const lines = markdown.split('\n');
+function splitIntoSections(
+  markdown: string,
+): { heading: string; content: string }[] {
+  const lines = markdown.split("\n");
   const sections: { heading: string; content: string }[] = [];
-  let currentHeading = '';
+  let currentHeading = "";
   let currentLines: string[] = [];
   let inSection = false;
 
@@ -48,7 +50,10 @@ function splitIntoSections(markdown: string): { heading: string; content: string
     const h2Match = /^## (.+)$/.exec(line);
     if (h2Match) {
       if (inSection) {
-        sections.push({ heading: currentHeading, content: currentLines.join('\n').trim() });
+        sections.push({
+          heading: currentHeading,
+          content: currentLines.join("\n").trim(),
+        });
       }
       currentHeading = h2Match[1].trim();
       currentLines = [];
@@ -59,7 +64,10 @@ function splitIntoSections(markdown: string): { heading: string; content: string
   }
 
   if (inSection) {
-    sections.push({ heading: currentHeading, content: currentLines.join('\n').trim() });
+    sections.push({
+      heading: currentHeading,
+      content: currentLines.join("\n").trim(),
+    });
   }
 
   return sections;
@@ -72,22 +80,26 @@ function parseStoryContent(rawMarkdown: string): {
   description: string;
   acceptanceCriteria: string[];
 } {
-  let description = '';
+  let description = "";
   let acceptanceCriteria: string[] = [];
 
   // Extract description: content after **Description:** up to next blank line or next **
-  const descMatch = /\*\*Description:\*\*\s*([\s\S]+?)(?=\n\n|\*\*[A-Z]|$)/.exec(rawMarkdown);
+  const descMatch =
+    /\*\*Description:\*\*\s*([\s\S]+?)(?=\n\n|\*\*[A-Z]|$)/.exec(rawMarkdown);
   if (descMatch) {
     description = descMatch[1].trim();
   }
 
   // Extract acceptance criteria: list items after **Acceptance Criteria:**
-  const criteriaMatch = /\*\*Acceptance Criteria:\*\*\s*\n([\s\S]+?)(?=\n\n\*\*|\n#{3,}|$)/.exec(rawMarkdown);
+  const criteriaMatch =
+    /\*\*Acceptance Criteria:\*\*\s*\n([\s\S]+?)(?=\n\n\*\*|\n#{3,}|$)/.exec(
+      rawMarkdown,
+    );
   if (criteriaMatch) {
     acceptanceCriteria = criteriaMatch[1]
-      .split('\n')
+      .split("\n")
       .filter((line) => /^\s*-/.test(line))
-      .map((line) => line.replace(/^\s*-\s*/, '').trim())
+      .map((line) => line.replace(/^\s*-\s*/, "").trim())
       .filter((line) => line.length > 0);
   }
 
@@ -99,7 +111,7 @@ function parseStoryContent(rawMarkdown: string): {
  * e.g., "Phase 1: Narrative Page Optimization"
  */
 function isPhaseHeader(headingText: string): boolean {
-  const cleaned = headingText.replace(/^✅\s*/, '').trim();
+  const cleaned = headingText.replace(/^✅\s*/, "").trim();
   return /^Phase\s+(\d+|[A-Za-z]+)\s*:/i.test(cleaned);
 }
 
@@ -111,7 +123,7 @@ function isPhaseHeader(headingText: string): boolean {
  */
 function parseStories(content: string): ParsedStory[] {
   const stories: ParsedStory[] = [];
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   let sequentialCounter = 1;
 
   let currentHeadingText: string | null = null;
@@ -121,10 +133,10 @@ function parseStories(content: string): ParsedStory[] {
   const flushStory = () => {
     if (currentHeadingText === null) return;
 
-    const headingLine = '#'.repeat(currentLevel) + ' ' + currentHeadingText;
-    const rawMarkdown = [headingLine, ...currentLines].join('\n').trim();
+    const headingLine = "#".repeat(currentLevel) + " " + currentHeadingText;
+    const rawMarkdown = [headingLine, ...currentLines].join("\n").trim();
 
-    const cleanedHeading = currentHeadingText.replace(/^✅\s*/, '').trim();
+    const cleanedHeading = currentHeadingText.replace(/^✅\s*/, "").trim();
     const storyIdMatch = /^(US-\d+):\s*(.+)$/.exec(cleanedHeading);
 
     let id: string;
@@ -134,9 +146,9 @@ function parseStories(content: string): ParsedStory[] {
       id = storyIdMatch[1];
       title = storyIdMatch[2].trim();
     } else {
-      id = `US-${String(sequentialCounter).padStart(3, '0')}`;
+      id = `US-${String(sequentialCounter).padStart(3, "0")}`;
       sequentialCounter++;
-      title = cleanedHeading.replace(/:$/, '').trim();
+      title = cleanedHeading.replace(/:$/, "").trim();
     }
 
     const { description, acceptanceCriteria } = parseStoryContent(rawMarkdown);
@@ -178,15 +190,15 @@ function parseStories(content: string): ParsedStory[] {
  */
 export function parsePrd(markdown: string): ParsedPrd {
   const result: ParsedPrd = {
-    title: '',
-    introduction: '',
-    goals: '',
-    nonGoals: '',
-    technicalConsiderations: '',
-    functionalRequirements: '',
-    designConsiderations: '',
-    successMetrics: '',
-    openQuestions: '',
+    title: "",
+    introduction: "",
+    goals: "",
+    nonGoals: "",
+    technicalConsiderations: "",
+    functionalRequirements: "",
+    designConsiderations: "",
+    successMetrics: "",
+    openQuestions: "",
     stories: [],
   };
 
@@ -202,32 +214,32 @@ export function parsePrd(markdown: string): ParsedPrd {
     const normalized = normalizeHeading(heading);
 
     switch (normalized) {
-      case 'introduction':
+      case "introduction":
         result.introduction = content;
         break;
-      case 'goals':
+      case "goals":
         result.goals = content;
         break;
-      case 'non goals':
-      case 'nongoals':
+      case "non goals":
+      case "nongoals":
         result.nonGoals = content;
         break;
-      case 'technical considerations':
+      case "technical considerations":
         result.technicalConsiderations = content;
         break;
-      case 'functional requirements':
+      case "functional requirements":
         result.functionalRequirements = content;
         break;
-      case 'design considerations':
+      case "design considerations":
         result.designConsiderations = content;
         break;
-      case 'success metrics':
+      case "success metrics":
         result.successMetrics = content;
         break;
-      case 'open questions':
+      case "open questions":
         result.openQuestions = content;
         break;
-      case 'user stories':
+      case "user stories":
         result.stories = parseStories(content);
         break;
     }

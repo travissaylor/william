@@ -3,6 +3,6 @@ export function replacePlaceholders(
   vars: Record<string, string>,
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => {
-    return key in vars ? vars[key] : '';
+    return key in vars ? vars[key] : "";
   });
 }

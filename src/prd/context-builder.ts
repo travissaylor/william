@@ -1,5 +1,5 @@
-import type { ParsedPrd, ParsedStory } from './parser.js';
-import type { WorkspaceState } from '../types.js';
+import type { ParsedPrd, ParsedStory } from "./parser.js";
+import type { WorkspaceState } from "../types.js";
 
 export interface BuildContextOpts {
   parsedPrd: ParsedPrd;
@@ -15,8 +15,11 @@ export interface BuildContextOpts {
  * Returns everything from the heading line up to the next ## heading or end of string.
  */
 function extractCodebasePatterns(progressTxt: string): string {
-  const match = /^## Codebase Patterns\s*\n([\s\S]*?)(?=\n## |\n---|\s*$)/m.exec(progressTxt);
-  if (!match) return '';
+  const match =
+    /^## Codebase Patterns\s*\n([\s\S]*?)(?=\n## |\n---|\s*$)/m.exec(
+      progressTxt,
+    );
+  if (!match) return "";
   return match[0].trim();
 }
 
@@ -24,15 +27,20 @@ function extractCodebasePatterns(progressTxt: string): string {
  * Extracts the last N progress entries from progress.txt.
  * Entries are delimited by ## [Date] - US-XXX style headers.
  */
-function extractLastProgressEntries(progressTxt: string, count: number): string {
+function extractLastProgressEntries(
+  progressTxt: string,
+  count: number,
+): string {
   // Split on ## headers that look like timestamps/story entries
   // Match patterns like "## 2024-01-15 - US-003" or "## [2024-01-15] - US-003"
   const parts = progressTxt.split(/(?=^## \[?\d{4}-\d{2}-\d{2}\]?)/m);
-  const entries = parts.filter((p) => /^## \[?\d{4}-\d{2}-\d{2}\]?/.test(p.trim()));
+  const entries = parts.filter((p) =>
+    /^## \[?\d{4}-\d{2}-\d{2}\]?/.test(p.trim()),
+  );
   return entries
     .slice(-count)
     .map((e) => e.trim())
-    .join('\n\n');
+    .join("\n\n");
 }
 
 /**
@@ -41,14 +49,14 @@ function extractLastProgressEntries(progressTxt: string, count: number): string 
 function storyStatusSymbol(
   storyId: string,
   currentStory: string | null,
-  stories: WorkspaceState['stories'],
+  stories: WorkspaceState["stories"],
 ): string {
-  if (storyId === currentStory) return '→';
-  const s = stories[storyId] as WorkspaceState['stories'][string] | undefined;
-  if (!s) return '·';
-  if (s.passes === true) return '✓';
-  if (s.passes === 'skipped') return '⊘';
-  return '·';
+  if (storyId === currentStory) return "→";
+  const s = stories[storyId] as WorkspaceState["stories"][string] | undefined;
+  if (!s) return "·";
+  if (s.passes === true) return "✓";
+  if (s.passes === "skipped") return "⊘";
+  return "·";
 }
 
 /**
@@ -61,21 +69,28 @@ function storyStatusSymbol(
  * optionally ## Stuck Recovery Hint.
  */
 export function buildContext(opts: BuildContextOpts): string {
-  const { parsedPrd, rawMarkdown, state, progressTxt, stuckHint, chainContext } = opts;
+  const {
+    parsedPrd,
+    rawMarkdown,
+    state,
+    progressTxt,
+    stuckHint,
+    chainContext,
+  } = opts;
   const parts: string[] = [];
 
-  const isSmall = Buffer.byteLength(rawMarkdown, 'utf8') < 10_240;
+  const isSmall = Buffer.byteLength(rawMarkdown, "utf8") < 10_240;
 
   if (isSmall) {
     parts.push(rawMarkdown);
   } else {
     // Append non-empty top-level sections
     const topSections: [string, string][] = [
-      ['## Introduction', parsedPrd.introduction],
-      ['## Goals', parsedPrd.goals],
-      ['## Non-Goals', parsedPrd.nonGoals],
-      ['## Technical Considerations', parsedPrd.technicalConsiderations],
-      ['## Functional Requirements', parsedPrd.functionalRequirements],
+      ["## Introduction", parsedPrd.introduction],
+      ["## Goals", parsedPrd.goals],
+      ["## Non-Goals", parsedPrd.nonGoals],
+      ["## Technical Considerations", parsedPrd.technicalConsiderations],
+      ["## Functional Requirements", parsedPrd.functionalRequirements],
     ];
     for (const [heading, content] of topSections) {
       if (content.trim()) {
@@ -89,11 +104,13 @@ export function buildContext(opts: BuildContextOpts): string {
       return `${sym} ${s.id}: ${s.title}`;
     });
     if (statusLines.length > 0) {
-      parts.push(`## Story Status\n\n${statusLines.join('\n')}`);
+      parts.push(`## Story Status\n\n${statusLines.join("\n")}`);
     }
 
     // Find current story index
-    const currentIdx = parsedPrd.stories.findIndex((s) => s.id === state.currentStory);
+    const currentIdx = parsedPrd.stories.findIndex(
+      (s) => s.id === state.currentStory,
+    );
 
     // Previous 1–2 completed stories (full rawMarkdown)
     if (currentIdx > 0) {
@@ -102,7 +119,9 @@ export function buildContext(opts: BuildContextOpts): string {
         .filter((s) => state.stories[s.id].passes === true)
         .slice(-2);
       for (const story of prevCompleted) {
-        parts.push(`## Previously Completed: ${story.id}\n\n${story.rawMarkdown}`);
+        parts.push(
+          `## Previously Completed: ${story.id}\n\n${story.rawMarkdown}`,
+        );
       }
     }
 
@@ -117,14 +136,14 @@ export function buildContext(opts: BuildContextOpts): string {
     if (currentIdx !== -1) {
       for (const s of parsedPrd.stories.slice(currentIdx + 1)) {
         const st = state.stories[s.id];
-        if (st.passes !== true && st.passes !== 'skipped') {
+        if (st.passes !== true && st.passes !== "skipped") {
           upcoming.push(s);
           if (upcoming.length >= 2) break;
         }
       }
     }
     for (const story of upcoming) {
-      const descPart = story.description ? `\n\n${story.description}` : '';
+      const descPart = story.description ? `\n\n${story.description}` : "";
       parts.push(`## Upcoming: ${story.id} — ${story.title}${descPart}`);
     }
   }
@@ -151,5 +170,5 @@ export function buildContext(opts: BuildContextOpts): string {
     parts.push(chainContext);
   }
 
-  return parts.join('\n\n');
+  return parts.join("\n\n");
 }

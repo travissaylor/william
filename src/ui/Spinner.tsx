@@ -1,6 +1,6 @@
-import React from 'react';
-import { Box, Text } from 'ink';
-import InkSpinner from 'ink-spinner';
+import React from "react";
+import { Box, Text } from "ink";
+import InkSpinner from "ink-spinner";
 
 export function ThinkingSpinner() {
   return (

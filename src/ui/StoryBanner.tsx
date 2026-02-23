@@ -1,7 +1,7 @@
-import React from 'react';
-import { Box, Text } from 'ink';
+import React from "react";
+import { Box, Text } from "ink";
 
-export type BannerKind = 'complete' | 'skipped' | 'start';
+export type BannerKind = "complete" | "skipped" | "start";
 
 export interface StoryBannerProps {
   kind: BannerKind;
@@ -11,22 +11,31 @@ export interface StoryBannerProps {
 
 export function StoryBanner({ kind, storyId, storyTitle }: StoryBannerProps) {
   switch (kind) {
-    case 'complete':
+    case "complete":
       return (
         <Box>
-          <Text bold color="green">{'✓ '}{storyId}: {storyTitle} — COMPLETE</Text>
+          <Text bold color="green">
+            {"✓ "}
+            {storyId}: {storyTitle} — COMPLETE
+          </Text>
         </Box>
       );
-    case 'skipped':
+    case "skipped":
       return (
         <Box>
-          <Text bold color="yellow">{'⊘ '}{storyId}: {storyTitle} — SKIPPED</Text>
+          <Text bold color="yellow">
+            {"⊘ "}
+            {storyId}: {storyTitle} — SKIPPED
+          </Text>
         </Box>
       );
-    case 'start':
+    case "start":
       return (
         <Box>
-          <Text bold color="cyan">{'→ Starting '}{storyId}: {storyTitle}</Text>
+          <Text bold color="cyan">
+            {"→ Starting "}
+            {storyId}: {storyTitle}
+          </Text>
         </Box>
       );
   }

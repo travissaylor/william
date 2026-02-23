@@ -14,9 +14,11 @@ Add Prettier (code formatting) and ESLint (static analysis) to the William repos
 ## User Stories
 
 ### US-001: Install and configure Prettier
+
 **Description:** As a developer, I want Prettier configured so that all code is formatted consistently without manual effort.
 
 **Acceptance Criteria:**
+
 - [ ] `prettier` is installed as a devDependency
 - [ ] A `.prettierrc` config file exists at the repo root with Prettier defaults (double quotes, semicolons, 80 char width)
 - [ ] A `.prettierignore` file excludes `node_modules`, `dist`, and `build`
@@ -24,9 +26,11 @@ Add Prettier (code formatting) and ESLint (static analysis) to the William repos
 - [ ] Running `pnpm format:check` exits non-zero if any file is unformatted
 
 ### US-002: Install and configure ESLint with strict type-checked rules
+
 **Description:** As a developer, I want ESLint configured with strict TypeScript rules so that bugs like unsafe `any` usage, floating promises, and unused variables are caught automatically.
 
 **Acceptance Criteria:**
+
 - [ ] `eslint`, `typescript-eslint`, and `eslint-config-prettier` are installed as devDependencies
 - [ ] An `eslint.config.ts` flat config file exists at the repo root
 - [ ] Config extends `tseslint.configs.strictTypeChecked` and `tseslint.configs.stylisticTypeChecked`
@@ -37,9 +41,11 @@ Add Prettier (code formatting) and ESLint (static analysis) to the William repos
 - [ ] Typecheck (`pnpm typecheck`) still passes
 
 ### US-003: Add pre-commit hook with lint-staged
+
 **Description:** As a developer, I want formatting and linting to run automatically on staged files before every commit, so bad code can't slip into the repo.
 
 **Acceptance Criteria:**
+
 - [ ] `husky` and `lint-staged` are installed as devDependencies
 - [ ] A `.husky/pre-commit` hook runs `lint-staged`
 - [ ] `lint-staged` config (in `package.json` or `.lintstagedrc`) runs Prettier and ESLint on staged `.ts` and `.tsx` files
@@ -47,9 +53,11 @@ Add Prettier (code formatting) and ESLint (static analysis) to the William repos
 - [ ] A commit with clean code succeeds without issue
 
 ### US-004: Run initial codebase-wide fix
+
 **Description:** As a developer, I want all existing files formatted and lint-fixed so the codebase starts from a clean baseline.
 
 **Acceptance Criteria:**
+
 - [ ] `pnpm format` has been run on the entire codebase
 - [ ] `pnpm lint:fix` has been run on the entire codebase
 - [ ] Any remaining lint errors that cannot be auto-fixed are documented or suppressed with inline comments and a tracking note

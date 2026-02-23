@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { buildContext } from './context-builder.js';
-import { parsePrd } from './parser.js';
-import type { WorkspaceState } from '../types.js';
+import { describe, it, expect } from "vitest";
+import { buildContext } from "./context-builder.js";
+import { parsePrd } from "./parser.js";
+import type { WorkspaceState } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -182,9 +182,9 @@ The narrative and visual comparison pages experience severe performance degradat
 
 Paginated queries should use OFFSET/LIMIT or cursor-based patterns. Add database indexes if needed for common filter combinations. Use COUNT(*) with same filters for total_count and consider caching for large datasets.`;
 
-  const byteLen = Buffer.byteLength(base, 'utf8');
+  const byteLen = Buffer.byteLength(base, "utf8");
   if (byteLen < 10_241) {
-    return base + '\n\n' + ' '.repeat(10_241 - byteLen);
+    return base + "\n\n" + " ".repeat(10_241 - byteLen);
   }
   return base;
 }
@@ -216,42 +216,42 @@ const SAMPLE_PROGRESS_TXT = `## Codebase Patterns
 // US-001 through US-004 completed, US-005 current, US-006+ pending
 // Previous 2 completed stories before US-005: US-003, US-004
 const LARGE_PRD_STATE: WorkspaceState = {
-  workspace: 'test-ws',
-  project: 'test-project',
-  targetDir: '/tmp/test-project',
-  branchName: 'feature/test',
-  sourceFile: 'prd-revision-analysis-performance.md',
-  startedAt: '2024-01-01T00:00:00Z',
-  currentStory: 'US-005',
+  workspace: "test-ws",
+  project: "test-project",
+  targetDir: "/tmp/test-project",
+  branchName: "feature/test",
+  sourceFile: "prd-revision-analysis-performance.md",
+  startedAt: "2024-01-01T00:00:00Z",
+  currentStory: "US-005",
   stories: {
-    'US-001': { passes: true, attempts: 1, completedAt: '2024-01-01' },
-    'US-002': { passes: true, attempts: 1, completedAt: '2024-01-02' },
-    'US-003': { passes: true, attempts: 1, completedAt: '2024-01-03' },
-    'US-004': { passes: true, attempts: 1, completedAt: '2024-01-04' },
-    'US-005': { passes: false, attempts: 1 },
-    'US-006': { passes: false, attempts: 0 },
-    'US-007': { passes: false, attempts: 0 },
-    'US-008': { passes: false, attempts: 0 },
-    'US-009': { passes: false, attempts: 0 },
-    'US-010': { passes: false, attempts: 0 },
-    'US-011': { passes: false, attempts: 0 },
-    'US-012': { passes: false, attempts: 0 },
-    'US-013': { passes: false, attempts: 0 },
+    "US-001": { passes: true, attempts: 1, completedAt: "2024-01-01" },
+    "US-002": { passes: true, attempts: 1, completedAt: "2024-01-02" },
+    "US-003": { passes: true, attempts: 1, completedAt: "2024-01-03" },
+    "US-004": { passes: true, attempts: 1, completedAt: "2024-01-04" },
+    "US-005": { passes: false, attempts: 1 },
+    "US-006": { passes: false, attempts: 0 },
+    "US-007": { passes: false, attempts: 0 },
+    "US-008": { passes: false, attempts: 0 },
+    "US-009": { passes: false, attempts: 0 },
+    "US-010": { passes: false, attempts: 0 },
+    "US-011": { passes: false, attempts: 0 },
+    "US-012": { passes: false, attempts: 0 },
+    "US-013": { passes: false, attempts: 0 },
   },
 };
 
 // WorkspaceState for small PRD tests
 const SMALL_PRD_STATE: WorkspaceState = {
-  workspace: 'small-ws',
-  project: 'small-project',
-  targetDir: '/tmp/small-project',
-  branchName: 'feature/small',
-  sourceFile: 'prd-small.md',
-  startedAt: '2024-01-01T00:00:00Z',
-  currentStory: 'US-001',
+  workspace: "small-ws",
+  project: "small-project",
+  targetDir: "/tmp/small-project",
+  branchName: "feature/small",
+  sourceFile: "prd-small.md",
+  startedAt: "2024-01-01T00:00:00Z",
+  currentStory: "US-001",
   stories: {
-    'US-001': { passes: false, attempts: 0 },
-    'US-002': { passes: false, attempts: 0 },
+    "US-001": { passes: false, attempts: 0 },
+    "US-002": { passes: false, attempts: 0 },
   },
 };
 
@@ -259,192 +259,204 @@ const SMALL_PRD_STATE: WorkspaceState = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('buildContext - large PRD (≥ 10KB)', () => {
+describe("buildContext - large PRD (≥ 10KB)", () => {
   const parsedPrd = parsePrd(LARGE_PRD_MARKDOWN);
 
-  it('assembled output includes the non-goals section', () => {
+  it("assembled output includes the non-goals section", () => {
     const output = buildContext({
       parsedPrd,
       rawMarkdown: LARGE_PRD_MARKDOWN,
       state: LARGE_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
-    expect(output).toContain('## Non-Goals');
-    expect(output).toContain('No changes to the revision analysis processing pipeline');
+    expect(output).toContain("## Non-Goals");
+    expect(output).toContain(
+      "No changes to the revision analysis processing pipeline",
+    );
   });
 
-  it('does NOT include full criteria for completed stories outside the previous 2', () => {
+  it("does NOT include full criteria for completed stories outside the previous 2", () => {
     // US-001 and US-002 are completed but are not in the "previous 2" window
     // (US-003 and US-004 are the previous 2 before US-005 current)
     const output = buildContext({
       parsedPrd,
       rawMarkdown: LARGE_PRD_MARKDOWN,
       state: LARGE_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
     // US-001 acceptance criteria text should NOT appear in full
-    expect(output).not.toContain('Routes file created and mounted correctly');
+    expect(output).not.toContain("Routes file created and mounted correctly");
     // US-002 acceptance criteria text should NOT appear in full
-    expect(output).not.toContain('Supports filtering by change_status');
+    expect(output).not.toContain("Supports filtering by change_status");
   });
 
-  it('previous 2 completed stories appear with their full rawMarkdown', () => {
+  it("previous 2 completed stories appear with their full rawMarkdown", () => {
     // US-003 and US-004 are the 2 most recent completed stories before the current
     const output = buildContext({
       parsedPrd,
       rawMarkdown: LARGE_PRD_MARKDOWN,
       state: LARGE_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
     // US-003 acceptance criteria should appear
-    expect(output).toContain('Response size under 5KB for any analysis');
+    expect(output).toContain("Response size under 5KB for any analysis");
     // US-004 acceptance criteria should appear
-    expect(output).toContain('Supports pagination params: page, pageSize, sortField, sortOrder');
+    expect(output).toContain(
+      "Supports pagination params: page, pageSize, sortField, sortOrder",
+    );
     // They appear under "Previously Completed" headings
-    expect(output).toContain('## Previously Completed: US-003');
-    expect(output).toContain('## Previously Completed: US-004');
+    expect(output).toContain("## Previously Completed: US-003");
+    expect(output).toContain("## Previously Completed: US-004");
   });
 
-  it('current story full rawMarkdown is present in output', () => {
+  it("current story full rawMarkdown is present in output", () => {
     const output = buildContext({
       parsedPrd,
       rawMarkdown: LARGE_PRD_MARKDOWN,
       state: LARGE_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
-    expect(output).toContain('## Current Story');
+    expect(output).toContain("## Current Story");
     // US-005 acceptance criteria text should appear
-    expect(output).toContain('useRevisionAnalysisSummary hook created');
+    expect(output).toContain("useRevisionAnalysisSummary hook created");
   });
 
-  it('next 2 upcoming stories appear with title+description only, no acceptance criteria', () => {
+  it("next 2 upcoming stories appear with title+description only, no acceptance criteria", () => {
     // After US-005 (current), the next 2 pending stories are US-006 and US-007
     const output = buildContext({
       parsedPrd,
       rawMarkdown: LARGE_PRD_MARKDOWN,
       state: LARGE_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
     // US-006 upcoming section present
-    expect(output).toContain('US-006');
+    expect(output).toContain("US-006");
     // US-006 description should appear
-    expect(output).toContain('progressively fetch additional data');
+    expect(output).toContain("progressively fetch additional data");
     // US-007 upcoming section present
-    expect(output).toContain('US-007');
+    expect(output).toContain("US-007");
 
     // US-006 acceptance criteria should NOT appear in the upcoming section
-    expect(output).not.toContain('Page loads using summary endpoint');
+    expect(output).not.toContain("Page loads using summary endpoint");
     // US-007 acceptance criteria should NOT appear in the upcoming section
-    expect(output).not.toContain('Loading skeleton shown while comparison loads');
+    expect(output).not.toContain(
+      "Loading skeleton shown while comparison loads",
+    );
   });
 });
 
-describe('buildContext - small PRD (< 10KB)', () => {
+describe("buildContext - small PRD (< 10KB)", () => {
   const parsedPrd = parsePrd(SMALL_PRD_MARKDOWN);
 
-  it('includes the full raw markdown content verbatim', () => {
+  it("includes the full raw markdown content verbatim", () => {
     const output = buildContext({
       parsedPrd,
       rawMarkdown: SMALL_PRD_MARKDOWN,
       state: SMALL_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
     // The entire raw markdown should appear in the output
     expect(output).toContain(SMALL_PRD_MARKDOWN);
   });
 
-  it('full content appears even when progressTxt is empty', () => {
+  it("full content appears even when progressTxt is empty", () => {
     const output = buildContext({
       parsedPrd,
       rawMarkdown: SMALL_PRD_MARKDOWN,
       state: SMALL_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
-    expect(output).toContain('# PRD: Small Feature');
-    expect(output).toContain('US-001: First story');
-    expect(output).toContain('US-002: Second story');
+    expect(output).toContain("# PRD: Small Feature");
+    expect(output).toContain("US-001: First story");
+    expect(output).toContain("US-002: Second story");
   });
 });
 
-describe('buildContext - stuck hint', () => {
+describe("buildContext - stuck hint", () => {
   const smallParsed = parsePrd(SMALL_PRD_MARKDOWN);
   const largeParsed = parsePrd(LARGE_PRD_MARKDOWN);
 
-  it('appears under ## Stuck Recovery Hint heading when provided (small PRD)', () => {
-    const hint = 'Try a completely different approach to the database migration.';
+  it("appears under ## Stuck Recovery Hint heading when provided (small PRD)", () => {
+    const hint =
+      "Try a completely different approach to the database migration.";
     const output = buildContext({
       parsedPrd: smallParsed,
       rawMarkdown: SMALL_PRD_MARKDOWN,
       state: SMALL_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
       stuckHint: hint,
     });
     expect(output).toContain(`## Stuck Recovery Hint\n\n${hint}`);
   });
 
-  it('appears under ## Stuck Recovery Hint heading when provided (large PRD)', () => {
-    const hint = 'The endpoint returns 500 — check the database connection string.';
+  it("appears under ## Stuck Recovery Hint heading when provided (large PRD)", () => {
+    const hint =
+      "The endpoint returns 500 — check the database connection string.";
     const output = buildContext({
       parsedPrd: largeParsed,
       rawMarkdown: LARGE_PRD_MARKDOWN,
       state: LARGE_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
       stuckHint: hint,
     });
     expect(output).toContain(`## Stuck Recovery Hint\n\n${hint}`);
   });
 
-  it('is omitted from output when not provided', () => {
+  it("is omitted from output when not provided", () => {
     const output = buildContext({
       parsedPrd: smallParsed,
       rawMarkdown: SMALL_PRD_MARKDOWN,
       state: SMALL_PRD_STATE,
-      progressTxt: '',
+      progressTxt: "",
     });
-    expect(output).not.toContain('## Stuck Recovery Hint');
+    expect(output).not.toContain("## Stuck Recovery Hint");
   });
 });
 
-describe('buildContext - codebase patterns from progressTxt', () => {
+describe("buildContext - codebase patterns from progressTxt", () => {
   const smallParsed = parsePrd(SMALL_PRD_MARKDOWN);
   const largeParsed = parsePrd(LARGE_PRD_MARKDOWN);
 
-  it('includes the Codebase Patterns section in output for small PRD', () => {
+  it("includes the Codebase Patterns section in output for small PRD", () => {
     const output = buildContext({
       parsedPrd: smallParsed,
       rawMarkdown: SMALL_PRD_MARKDOWN,
       state: SMALL_PRD_STATE,
       progressTxt: SAMPLE_PROGRESS_TXT,
     });
-    expect(output).toContain('## Codebase Patterns');
-    expect(output).toContain('Always use strict TypeScript types throughout the codebase');
+    expect(output).toContain("## Codebase Patterns");
+    expect(output).toContain(
+      "Always use strict TypeScript types throughout the codebase",
+    );
   });
 
-  it('includes the Codebase Patterns section in output for large PRD', () => {
+  it("includes the Codebase Patterns section in output for large PRD", () => {
     const output = buildContext({
       parsedPrd: largeParsed,
       rawMarkdown: LARGE_PRD_MARKDOWN,
       state: LARGE_PRD_STATE,
       progressTxt: SAMPLE_PROGRESS_TXT,
     });
-    expect(output).toContain('## Codebase Patterns');
-    expect(output).toContain('Always use strict TypeScript types throughout the codebase');
+    expect(output).toContain("## Codebase Patterns");
+    expect(output).toContain(
+      "Always use strict TypeScript types throughout the codebase",
+    );
   });
 
-  it('includes the last 3 progress entries from progressTxt', () => {
+  it("includes the last 3 progress entries from progressTxt", () => {
     const output = buildContext({
       parsedPrd: smallParsed,
       rawMarkdown: SMALL_PRD_MARKDOWN,
       state: SMALL_PRD_STATE,
       progressTxt: SAMPLE_PROGRESS_TXT,
     });
-    expect(output).toContain('## Recent Progress');
-    expect(output).toContain('2024-01-15 - US-003');
-    expect(output).toContain('2024-01-16 - US-004');
-    expect(output).toContain('2024-01-17 - US-005');
+    expect(output).toContain("## Recent Progress");
+    expect(output).toContain("2024-01-15 - US-003");
+    expect(output).toContain("2024-01-16 - US-004");
+    expect(output).toContain("2024-01-17 - US-005");
   });
 
-  it('omits Codebase Patterns section when progressTxt has no patterns', () => {
+  it("omits Codebase Patterns section when progressTxt has no patterns", () => {
     const progressWithoutPatterns = `## 2024-01-15 - US-001
 - Implemented something
 ---
@@ -455,6 +467,6 @@ describe('buildContext - codebase patterns from progressTxt', () => {
       state: SMALL_PRD_STATE,
       progressTxt: progressWithoutPatterns,
     });
-    expect(output).not.toContain('## Codebase Patterns');
+    expect(output).not.toContain("## Codebase Patterns");
   });
 });

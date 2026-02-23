@@ -1,15 +1,11 @@
-import { EventEmitter } from 'events';
-import type {
-  StreamMessage,
-  StreamSession,
-  ContentBlock,
-} from './types.js';
+import { EventEmitter } from "events";
+import type { StreamMessage, StreamSession, ContentBlock } from "./types.js";
 
 export class NdjsonParser extends EventEmitter {
-  private buffer = '';
+  private buffer = "";
   private session: StreamSession = {
     events: [],
-    fullText: '',
+    fullText: "",
     toolUses: [],
     toolResults: [],
     totalCostUsd: 0,
@@ -21,10 +17,10 @@ export class NdjsonParser extends EventEmitter {
   };
 
   feed(chunk: Buffer | string): void {
-    this.buffer += typeof chunk === 'string' ? chunk : chunk.toString('utf-8');
-    const lines = this.buffer.split('\n');
+    this.buffer += typeof chunk === "string" ? chunk : chunk.toString("utf-8");
+    const lines = this.buffer.split("\n");
     // Keep the last element — it may be an incomplete line
-    this.buffer = lines.pop() ?? '';
+    this.buffer = lines.pop() ?? "";
     for (const line of lines) {
       this.parseLine(line);
     }
@@ -33,7 +29,7 @@ export class NdjsonParser extends EventEmitter {
   flush(): void {
     if (this.buffer.trim()) {
       this.parseLine(this.buffer);
-      this.buffer = '';
+      this.buffer = "";
     }
   }
 
@@ -49,19 +45,19 @@ export class NdjsonParser extends EventEmitter {
     try {
       parsed = JSON.parse(trimmed);
     } catch {
-      this.emit('parse-error', trimmed);
+      this.emit("parse-error", trimmed);
       return;
     }
 
     const msg = parsed as StreamMessage;
     this.session.events.push(msg);
-    this.emit('message', msg);
+    this.emit("message", msg);
 
-    if (msg.type === 'assistant') {
+    if (msg.type === "assistant") {
       this.extractAssistantContent(msg.message.content);
-    } else if (msg.type === 'user') {
+    } else if (msg.type === "user") {
       this.extractUserContent(msg.message.content);
-    } else if (msg.type === 'result') {
+    } else if (msg.type === "result") {
       this.session.totalCostUsd = msg.total_cost_usd;
       this.session.inputTokens = msg.usage.input_tokens;
       this.session.outputTokens = msg.usage.output_tokens;
@@ -73,9 +69,9 @@ export class NdjsonParser extends EventEmitter {
 
   private extractAssistantContent(blocks: ContentBlock[]): void {
     for (const block of blocks) {
-      if (block.type === 'text') {
+      if (block.type === "text") {
         this.session.fullText += block.text;
-      } else if (block.type === 'tool_use') {
+      } else if (block.type === "tool_use") {
         this.session.toolUses.push(block);
       }
     }
@@ -83,7 +79,7 @@ export class NdjsonParser extends EventEmitter {
 
   private extractUserContent(blocks: ContentBlock[]): void {
     for (const block of blocks) {
-      if (block.type === 'tool_result') {
+      if (block.type === "tool_result") {
         this.session.toolResults.push(block);
       }
     }
