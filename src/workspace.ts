@@ -9,6 +9,63 @@ import { TuiEmitter } from './ui/events.js';
 import { App } from './ui/App.js';
 import type { WorkspaceState } from './types.js';
 
+export interface ResolvedWorkspace {
+  workspaceDir: string;
+  workspaceName: string;
+  projectName: string;
+}
+
+/**
+ * Resolve a workspace by name or project/name path.
+ * Scans workspaces/{project}/{name}/ directories to find matches.
+ */
+export function resolveWorkspace(nameOrPath: string): ResolvedWorkspace {
+  const workspacesRoot = path.join(WILLIAM_ROOT, 'workspaces');
+
+  if (!fs.existsSync(workspacesRoot)) {
+    throw new Error(`No workspaces directory found. Create a workspace first with: william new`);
+  }
+
+  // If the input contains a slash, treat it as project/workspace
+  if (nameOrPath.includes('/')) {
+    const [projectName, workspaceName] = nameOrPath.split('/');
+    const workspaceDir = path.join(workspacesRoot, projectName, workspaceName);
+    if (!fs.existsSync(workspaceDir)) {
+      throw new Error(`Workspace "${workspaceName}" not found under project "${projectName}".`);
+    }
+    return { workspaceDir, workspaceName, projectName };
+  }
+
+  // Scan all project directories for a matching workspace name
+  const matches: ResolvedWorkspace[] = [];
+  const projectDirs = fs.readdirSync(workspacesRoot).filter((entry) => {
+    const full = path.join(workspacesRoot, entry);
+    return fs.statSync(full).isDirectory();
+  });
+
+  for (const projectName of projectDirs) {
+    const candidate = path.join(workspacesRoot, projectName, nameOrPath);
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+      matches.push({ workspaceDir: candidate, workspaceName: nameOrPath, projectName });
+    }
+  }
+
+  if (matches.length === 0) {
+    throw new Error(
+      `Workspace "${nameOrPath}" not found. Create it first with: william new`,
+    );
+  }
+
+  if (matches.length > 1) {
+    const listing = matches.map((m) => `  ${m.projectName}/${m.workspaceName}`).join('\n');
+    throw new Error(
+      `Workspace "${nameOrPath}" exists under multiple projects:\n${listing}\nSpecify the project: william start <project>/${nameOrPath}`,
+    );
+  }
+
+  return matches[0];
+}
+
 export interface CreateWorkspaceOpts {
   targetDir: string;
   prdFile: string;
@@ -61,28 +118,23 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
 }
 
 export async function startWorkspace(name: string, opts: RunOpts): Promise<void> {
-  const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', name);
-  if (!fs.existsSync(workspaceDir)) {
-    throw new Error(
-      `Workspace "${name}" does not exist. Create it first with: william start ${name} --target <dir> --prd <file> --branch <name>`,
-    );
-  }
+  const resolved = resolveWorkspace(name);
 
-  const statePath = path.join(workspaceDir, 'state.json');
+  const statePath = path.join(resolved.workspaceDir, 'state.json');
   const initialState = loadState(statePath);
 
   const emitter = new TuiEmitter();
   const inkApp = render(
     createElement(App, {
       emitter,
-      workspaceName: name,
+      workspaceName: resolved.workspaceName,
       initialState,
       maxIterations: opts.maxIterations ?? 20,
     }),
   );
 
   try {
-    await runWorkspace(name, opts, emitter);
+    await runWorkspace(resolved.workspaceName, resolved.workspaceDir, opts, emitter);
   } finally {
     inkApp.unmount();
   }

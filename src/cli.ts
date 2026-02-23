@@ -67,41 +67,16 @@ program
 program
   .command('start <workspace-name>')
   .description(
-    'Create workspace (if needed) and start the iteration loop, or resume if already exists',
+    'Start (or resume) a workspace. Create one first with: william new',
   )
-  .requiredOption('--target <dir>', 'target project directory')
-  .requiredOption('--prd <file>', 'path to PRD markdown file')
-  .requiredOption('--branch <name>', 'git branch name')
-  .option('--project <name>', 'project name (defaults to target directory basename)')
   .option('--max-iterations <n>', 'maximum iterations', '20')
   .option('--tool <adapter>', 'AI tool adapter to use', 'claude')
   .action(async (workspaceName: string, options: {
-    target: string;
-    prd: string;
-    branch: string;
-    project?: string;
     maxIterations: string;
     tool: string;
   }) => {
     try {
       const adapter = ClaudeAdapter;
-
-      // Try to create workspace; if it already exists, resume
-      try {
-        createWorkspace(workspaceName, {
-          targetDir: options.target,
-          prdFile: options.prd,
-          branchName: options.branch,
-          project: options.project,
-        });
-        console.log(`[william] Workspace "${workspaceName}" created.`);
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('already exists')) {
-          console.log(`[william] Workspace "${workspaceName}" already exists. Resuming.`);
-        } else {
-          throw err;
-        }
-      }
 
       await startWorkspace(workspaceName, {
         adapter,

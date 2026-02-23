@@ -208,12 +208,10 @@ function runStuckDetection(
 
 // --- Main runner ---
 
-export async function runWorkspace(workspaceName: string, opts: RunOpts, emitter: TuiEmitter): Promise<void> {
+export async function runWorkspace(workspaceName: string, workspaceDir: string, opts: RunOpts, emitter: TuiEmitter): Promise<void> {
   const maxIterations = opts.maxIterations ?? 20;
   const sleepMs = opts.sleepMs ?? 2000;
   const { adapter } = opts;
-
-  const workspaceDir = path.join(WILLIAM_ROOT, 'workspaces', workspaceName);
   const statePath = path.join(workspaceDir, 'state.json');
   const progressPath = path.join(workspaceDir, 'progress.txt');
   const stuckHintPath = path.join(workspaceDir, '.stuck-hint.md');
