@@ -12,6 +12,7 @@ import {
 } from './workspace.js';
 import { archiveWorkspace } from './archive.js';
 import { ClaudeAdapter } from './adapters/claude.js';
+import { runNewWizard } from './wizard.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,6 +32,37 @@ program
   .name('william')
   .description('Autonomous orchestrator for managing development tasks')
   .version(readPackageVersion());
+
+program
+  .command('new')
+  .description('Interactive wizard to create a new workspace')
+  .action(async () => {
+    try {
+      const result = await runNewWizard();
+
+      createWorkspace(result.workspaceName, {
+        targetDir: result.targetDir,
+        prdFile: result.prdFile,
+        branchName: result.branchName,
+        project: result.projectName,
+      });
+
+      console.log('\nWorkspace created:');
+      console.log(`  Name:      ${result.workspaceName}`);
+      console.log(`  Project:   ${result.projectName}`);
+      console.log(`  Target:    ${result.targetDir}`);
+      console.log(`  Branch:    ${result.branchName}`);
+      console.log(`  PRD:       ${result.prdFile}`);
+      console.log(`\nRun: william start ${result.workspaceName}`);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'ExitPromptError') {
+        console.log('\nWizard cancelled.');
+        return;
+      }
+      console.error(`[william] Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
 
 program
   .command('start <workspace-name>')
