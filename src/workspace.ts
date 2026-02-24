@@ -23,6 +23,7 @@ export interface ResolvedWorkspace {
 /**
  * Resolve a workspace by name or project/name path.
  * Scans workspaces/{project}/{name}/ directories to find matches.
+ * Also supports revision paths: workspace/revision-N or project/workspace/revision-N.
  */
 export function resolveWorkspace(nameOrPath: string): ResolvedWorkspace {
   const workspacesRoot = path.join(WILLIAM_ROOT, "workspaces");
@@ -33,9 +34,71 @@ export function resolveWorkspace(nameOrPath: string): ResolvedWorkspace {
     );
   }
 
-  // If the input contains a slash, treat it as project/workspace
-  if (nameOrPath.includes("/")) {
-    const [projectName, workspaceName] = nameOrPath.split("/");
+  const parts = nameOrPath.split("/");
+
+  // Three-part path: project/workspace/revision-N
+  if (parts.length === 3) {
+    const [projectName, parentName, revisionName] = parts;
+    const workspaceDir = path.join(
+      workspacesRoot,
+      projectName,
+      parentName,
+      revisionName,
+    );
+    if (!fs.existsSync(workspaceDir)) {
+      throw new Error(
+        `Revision workspace "${revisionName}" not found under "${projectName}/${parentName}".`,
+      );
+    }
+    return {
+      workspaceDir,
+      workspaceName: `${parentName}/${revisionName}`,
+      projectName,
+    };
+  }
+
+  // Two-part path: could be project/workspace or workspace/revision-N
+  if (parts.length === 2) {
+    const [first, second] = parts;
+
+    // If the second part looks like a revision, try workspace/revision-N first
+    if (/^revision-\d+$/.test(second)) {
+      const projectDirs = fs.readdirSync(workspacesRoot).filter((entry) => {
+        const full = path.join(workspacesRoot, entry);
+        return fs.statSync(full).isDirectory();
+      });
+
+      const revisionMatches: ResolvedWorkspace[] = [];
+      for (const projectName of projectDirs) {
+        const candidate = path.join(workspacesRoot, projectName, first, second);
+        if (
+          fs.existsSync(candidate) &&
+          fs.statSync(candidate).isDirectory() &&
+          fs.existsSync(path.join(candidate, "state.json"))
+        ) {
+          revisionMatches.push({
+            workspaceDir: candidate,
+            workspaceName: `${first}/${second}`,
+            projectName,
+          });
+        }
+      }
+
+      if (revisionMatches.length === 1) {
+        return revisionMatches[0];
+      }
+      if (revisionMatches.length > 1) {
+        const listing = revisionMatches
+          .map((m) => `  ${m.projectName}/${m.workspaceName}`)
+          .join("\n");
+        throw new Error(
+          `Revision workspace "${nameOrPath}" exists under multiple projects:\n${listing}\nSpecify the project: william status <project>/${nameOrPath}`,
+        );
+      }
+    }
+
+    // Fall back to project/workspace interpretation
+    const [projectName, workspaceName] = parts;
     const workspaceDir = path.join(workspacesRoot, projectName, workspaceName);
     if (!fs.existsSync(workspaceDir)) {
       throw new Error(
@@ -45,7 +108,7 @@ export function resolveWorkspace(nameOrPath: string): ResolvedWorkspace {
     return { workspaceDir, workspaceName, projectName };
   }
 
-  // Scan all project directories for a matching workspace name
+  // Single name: scan all project directories for a matching workspace name
   const matches: ResolvedWorkspace[] = [];
   const projectDirs = fs.readdirSync(workspacesRoot).filter((entry) => {
     const full = path.join(workspacesRoot, entry);
@@ -309,6 +372,7 @@ export function listGroupedWorkspaces(): Record<string, string[]> {
 
   for (const project of projectDirs) {
     const projectPath = path.join(workspacesDir, project);
+    const entries: string[] = [];
     const workspaces = fs.readdirSync(projectPath).filter((entry) => {
       const full = path.join(projectPath, entry);
       return (
@@ -317,8 +381,34 @@ export function listGroupedWorkspaces(): Record<string, string[]> {
       );
     });
 
-    if (workspaces.length > 0) {
-      result[project] = workspaces;
+    for (const ws of workspaces) {
+      entries.push(ws);
+
+      // Scan for revision subdirectories
+      const wsPath = path.join(projectPath, ws);
+      const revisionDirs = fs
+        .readdirSync(wsPath)
+        .filter((entry) => {
+          const full = path.join(wsPath, entry);
+          return (
+            /^revision-\d+$/.test(entry) &&
+            fs.statSync(full).isDirectory() &&
+            fs.existsSync(path.join(full, "state.json"))
+          );
+        })
+        .sort(
+          (a, b) =>
+            parseInt(a.replace("revision-", ""), 10) -
+            parseInt(b.replace("revision-", ""), 10),
+        );
+
+      for (const rev of revisionDirs) {
+        entries.push(`${ws}/${rev}`);
+      }
+    }
+
+    if (entries.length > 0) {
+      result[project] = entries;
     }
   }
 
@@ -331,6 +421,67 @@ export interface WorkspaceStatus {
   currentStory: string | null;
   summary: string;
   runningStatus: "running" | "stopped" | "paused";
+}
+
+export interface RevisionStatusEntry {
+  name: string;
+  status: string;
+  passed: number;
+  total: number;
+}
+
+/**
+ * Discover revision subdirectories for a workspace and return their status info.
+ */
+export function getRevisionStatuses(
+  workspaceDir: string,
+): RevisionStatusEntry[] {
+  const results: RevisionStatusEntry[] = [];
+  if (!fs.existsSync(workspaceDir)) return results;
+
+  const entries = fs
+    .readdirSync(workspaceDir)
+    .filter((entry) => {
+      const full = path.join(workspaceDir, entry);
+      return (
+        /^revision-\d+$/.test(entry) &&
+        fs.statSync(full).isDirectory() &&
+        fs.existsSync(path.join(full, "state.json"))
+      );
+    })
+    .sort(
+      (a, b) =>
+        parseInt(a.replace("revision-", ""), 10) -
+        parseInt(b.replace("revision-", ""), 10),
+    );
+
+  for (const rev of entries) {
+    const revStatePath = path.join(workspaceDir, rev, "state.json");
+    try {
+      const revState = loadState(revStatePath);
+      const storyValues = Object.values(revState.stories);
+      const passed = storyValues.filter((s) => s.passes === true).length;
+      const total = storyValues.length;
+      const allDone =
+        total > 0 &&
+        storyValues.every((s) => s.passes === true || s.passes === "skipped");
+
+      let status = "running";
+      if (fs.existsSync(path.join(workspaceDir, rev, ".stopped"))) {
+        status = "stopped";
+      } else if (fs.existsSync(path.join(workspaceDir, rev, ".paused"))) {
+        status = "paused";
+      } else if (allDone) {
+        status = "completed";
+      }
+
+      results.push({ name: rev, status, passed, total });
+    } catch {
+      results.push({ name: rev, status: "unknown", passed: 0, total: 0 });
+    }
+  }
+
+  return results;
 }
 
 export function getWorkspaceStatus(name: string): WorkspaceStatus {

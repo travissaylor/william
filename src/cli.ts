@@ -12,6 +12,7 @@ import {
   stopWorkspace,
   listGroupedWorkspaces,
   getWorkspaceStatus,
+  getRevisionStatuses,
   resolveWorkspace,
   updateParentAfterRevision,
 } from "./workspace.js";
@@ -171,6 +172,7 @@ program
     try {
       if (workspaceName) {
         // Detailed status for a specific workspace
+        const resolved = resolveWorkspace(workspaceName);
         const status = getWorkspaceStatus(workspaceName);
         console.log(`Workspace: ${status.name}`);
         console.log(`Status:    ${status.runningStatus}`);
@@ -190,6 +192,19 @@ program
             story.attempts > 0 ? ` (${story.attempts} attempts)` : "";
           const isCurrent = id === status.currentStory ? " ← current" : "";
           console.log(`  ${mark} ${id}${attempts}${isCurrent}`);
+        }
+
+        // Show revisions section for parent workspaces (not for revision workspaces themselves)
+        if (!status.state.parentWorkspace) {
+          const revisions = getRevisionStatuses(resolved.workspaceDir);
+          if (revisions.length > 0) {
+            console.log("\nRevisions:");
+            for (const rev of revisions) {
+              console.log(
+                `  ${rev.name} [${rev.status}] — ${rev.passed}/${rev.total}`,
+              );
+            }
+          }
         }
       } else {
         // Summary for all workspaces grouped by project
@@ -300,7 +315,11 @@ function printProjectGroup(project: string, workspaces: string[]): void {
         total > 0 &&
         storyValues.every((s) => s.passes === true || s.passes === "skipped");
       const displayStatus = allDone ? "completed" : status.runningStatus;
-      console.log(`  ${ws} [${displayStatus}] — ${passed}/${total}`);
+      const isRevision = ws.includes("/revision-");
+      const revisionTag = isRevision ? " [revision]" : "";
+      console.log(
+        `  ${ws}${revisionTag} [${displayStatus}] — ${passed}/${total}`,
+      );
     } catch {
       console.log(`  ${ws} [unknown]`);
     }
