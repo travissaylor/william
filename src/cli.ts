@@ -2,7 +2,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process";
 import { Command } from "commander";
 import {
   createWorkspace,
@@ -13,9 +12,12 @@ import {
   resolveWorkspace,
 } from "./workspace.js";
 import { archiveWorkspace } from "./archive.js";
-import { ClaudeAdapter } from "./adapters/claude.js";
+import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
 import { runNewWizard } from "./wizard.js";
-import { collectRevisionProblems } from "./revision-wizard.js";
+import {
+  collectRevisionProblems,
+  generateRevisionPlan,
+} from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
 import { loadState } from "./prd/tracker.js";
 
@@ -333,25 +335,7 @@ program
 
       const startTime = Date.now();
 
-      let child;
-
-      if (prompt.length > 100_000) {
-        // For very long prompts, pass via stdin
-        child = spawn("claude", [], {
-          stdio: ["pipe", "inherit", "inherit"],
-          cwd: process.cwd(),
-        });
-        child.stdin.end(prompt);
-      } else {
-        child = spawn("claude", [prompt], {
-          stdio: "inherit",
-          cwd: process.cwd(),
-        });
-      }
-
-      const exitCode = await new Promise<number | null>((resolve) => {
-        child.on("close", resolve);
-      });
+      const exitCode = await spawnInteractive(prompt);
 
       if (exitCode !== 0) {
         console.error(
@@ -426,8 +410,19 @@ program
       const problems = await collectRevisionProblems();
 
       console.log(
-        `\nCollected ${problems.length} problem(s). Ready for plan generation.`,
+        `\nCollected ${problems.length} problem(s). Generating revision plan...\n`,
       );
+
+      const plan = await generateRevisionPlan({
+        problems,
+        workspaceDir: resolved.workspaceDir,
+        targetDir: state.targetDir,
+        branchName: state.branchName,
+      });
+
+      if (plan !== null) {
+        console.log("\nRevision plan generated.");
+      }
     } catch (err) {
       if (err instanceof Error && err.name === "ExitPromptError") {
         console.log("\nRevision cancelled.");
