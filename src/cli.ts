@@ -10,11 +10,13 @@ import {
   stopWorkspace,
   listGroupedWorkspaces,
   getWorkspaceStatus,
+  resolveWorkspace,
 } from "./workspace.js";
 import { archiveWorkspace } from "./archive.js";
 import { ClaudeAdapter } from "./adapters/claude.js";
 import { runNewWizard } from "./wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
+import { loadState } from "./prd/tracker.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -382,6 +384,43 @@ program
           }
         }
       }
+    } catch (err) {
+      console.error(
+        `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  });
+
+program
+  .command("revise <workspace-name>")
+  .description("Start a revision flow for a completed workspace")
+  .action((workspaceName: string) => {
+    try {
+      const resolved = resolveWorkspace(workspaceName);
+      const statePath = path.join(resolved.workspaceDir, "state.json");
+
+      if (!fs.existsSync(statePath)) {
+        console.error(
+          `[william] Error: No state.json found for workspace "${workspaceName}". Cannot revise.`,
+        );
+        process.exit(1);
+      }
+
+      const state = loadState(statePath);
+      const pending = Object.values(state.stories).filter(
+        (s) => s.passes === false,
+      ).length;
+
+      if (pending > 0) {
+        console.warn(
+          `Warning: ${pending} ${pending === 1 ? "story" : "stories"} still pending`,
+        );
+      }
+
+      console.log(
+        `Starting revision for workspace "${resolved.projectName}/${resolved.workspaceName}"...`,
+      );
     } catch (err) {
       console.error(
         `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
