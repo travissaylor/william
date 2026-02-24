@@ -15,6 +15,7 @@ import {
 import { archiveWorkspace } from "./archive.js";
 import { ClaudeAdapter } from "./adapters/claude.js";
 import { runNewWizard } from "./wizard.js";
+import { collectRevisionProblems } from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
 import { loadState } from "./prd/tracker.js";
 
@@ -395,7 +396,7 @@ program
 program
   .command("revise <workspace-name>")
   .description("Start a revision flow for a completed workspace")
-  .action((workspaceName: string) => {
+  .action(async (workspaceName: string) => {
     try {
       const resolved = resolveWorkspace(workspaceName);
       const statePath = path.join(resolved.workspaceDir, "state.json");
@@ -421,7 +422,17 @@ program
       console.log(
         `Starting revision for workspace "${resolved.projectName}/${resolved.workspaceName}"...`,
       );
+
+      const problems = await collectRevisionProblems();
+
+      console.log(
+        `\nCollected ${problems.length} problem(s). Ready for plan generation.`,
+      );
     } catch (err) {
+      if (err instanceof Error && err.name === "ExitPromptError") {
+        console.log("\nRevision cancelled.");
+        return;
+      }
       console.error(
         `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
       );
