@@ -155,6 +155,7 @@ function runStuckDetection(
   state: WorkspaceState,
   workspaceDir: string,
   session: StreamSession,
+  isRevision: boolean,
 ): StuckResult {
   const currentStoryId = getCurrentStory(state);
   if (currentStoryId === null) return { action: "continue" };
@@ -166,8 +167,12 @@ function runStuckDetection(
   const stuckHintExists = fs.existsSync(stuckHintPath);
   const pausedPath = path.join(workspaceDir, ".paused");
 
-  // Escalation: stuck hint already written + attempts >= 7 → pause
-  if (stuckHintExists && attempts >= 7) {
+  // Thresholds differ for revision workspaces (lower, and skip is disabled)
+  const hintThreshold = isRevision ? 2 : 3;
+  const pauseThreshold = isRevision ? 4 : 7;
+
+  // Escalation: stuck hint already written + attempts >= pause threshold → pause
+  if (stuckHintExists && attempts >= pauseThreshold) {
     fs.writeFileSync(
       pausedPath,
       `Paused: ${currentStoryId} stuck after ${attempts} attempts\n`,
@@ -180,8 +185,8 @@ function runStuckDetection(
     return { action: "pause" };
   }
 
-  // Escalation: stuck hint already written + attempts >= 5 → skip
-  if (stuckHintExists && attempts >= 5) {
+  // Escalation: stuck hint already written + attempts >= 5 → skip (disabled for revisions)
+  if (!isRevision && stuckHintExists && attempts >= 5) {
     const statePath = path.join(workspaceDir, "state.json");
     const updatedState = markStorySkipped(
       state,
@@ -201,9 +206,15 @@ function runStuckDetection(
   const isZeroProgress = detectZeroProgress(session);
   const isHighErrorRate = detectHighErrorRate(session);
 
-  if (attempts >= 3 || isToolLoop || isZeroProgress || isHighErrorRate) {
+  if (
+    attempts >= hintThreshold ||
+    isToolLoop ||
+    isZeroProgress ||
+    isHighErrorRate
+  ) {
     const reasons: string[] = [];
-    if (attempts >= 3) reasons.push(`Failed ${attempts} times in a row`);
+    if (attempts >= hintThreshold)
+      reasons.push(`Failed ${attempts} times in a row`);
     if (isToolLoop)
       reasons.push(
         "Detected tool loop (same tool called 10+ times with identical input)",
@@ -458,7 +469,12 @@ export async function runWorkspace(
     }
 
     // Inline stuck detection (replaces watchdog)
-    const stuckResult = runStuckDetection(currentState, workspaceDir, session);
+    const stuckResult = runStuckDetection(
+      currentState,
+      workspaceDir,
+      session,
+      isRevision,
+    );
 
     if (stuckResult.action === "pause") {
       emitter.system(
