@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { Command } from "commander";
+import { createElement } from "react";
+import { render } from "ink";
 import {
   createWorkspace,
   createRevisionWorkspace,
@@ -21,6 +23,9 @@ import {
 } from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
 import { loadState } from "./prd/tracker.js";
+import { runWorkspace } from "./runner.js";
+import { TuiEmitter } from "./ui/events.js";
+import { App } from "./ui/App.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -436,6 +441,35 @@ program
         `\nRevision workspace created: ${resolved.projectName}/${resolved.workspaceName}/revision-${revisionNumber}`,
       );
       console.log(`  Path: ${revisionDir}`);
+      console.log(`\nStarting revision execution...\n`);
+
+      const revisionStatePath = path.join(revisionDir, "state.json");
+      const revisionState = loadState(revisionStatePath);
+      const revisionName = `${resolved.workspaceName}/revision-${revisionNumber}`;
+
+      const emitter = new TuiEmitter();
+      const inkApp = render(
+        createElement(App, {
+          emitter,
+          workspaceName: revisionName,
+          initialState: revisionState,
+          maxIterations: 20,
+        }),
+      );
+
+      try {
+        await runWorkspace(
+          revisionName,
+          revisionDir,
+          {
+            adapter: ClaudeAdapter,
+            maxIterations: 20,
+          },
+          emitter,
+        );
+      } finally {
+        inkApp.unmount();
+      }
     } catch (err) {
       if (err instanceof Error && err.name === "ExitPromptError") {
         console.log("\nRevision cancelled.");

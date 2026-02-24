@@ -8,6 +8,8 @@ export interface BuildContextOpts {
   progressTxt: string;
   stuckHint?: string;
   chainContext?: string;
+  /** For revision workspaces: the full original PRD so agents understand the broader context */
+  originalPrd?: string;
 }
 
 /**
@@ -76,8 +78,14 @@ export function buildContext(opts: BuildContextOpts): string {
     progressTxt,
     stuckHint,
     chainContext,
+    originalPrd,
   } = opts;
   const parts: string[] = [];
+
+  // For revision workspaces, prepend the original PRD so agents understand the broader context
+  if (originalPrd) {
+    parts.push(`## Original PRD\n\n${originalPrd}`);
+  }
 
   const isSmall = Buffer.byteLength(rawMarkdown, "utf8") < 10_240;
 

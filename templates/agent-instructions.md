@@ -56,12 +56,12 @@ Once all checks pass, commit your changes:
 
 ```sh
 git add <relevant files>
-git commit -m "[{{story_title}}]"
+git commit -m "{{commit_message}}"
 ```
 
 Rules:
 
-- Commit message must be exactly `[{{story_title}}]`
+- Commit message must be exactly `{{commit_message}}`
 - Do **not** include a `Co-Authored-By` trailer
 - Do **not** stage or commit files from the orchestrator repository — only files in the target project
 

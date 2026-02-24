@@ -251,6 +251,17 @@ export async function runWorkspace(
 
   const templateContent = fs.readFileSync(templatePath, "utf-8");
 
+  // Detect revision workspace and load original PRD if applicable
+  const initialState = loadState(statePath);
+  const isRevision = !!initialState.parentWorkspace;
+  let originalPrd: string | undefined;
+  if (isRevision && initialState.parentWorkspace) {
+    const parentPrdPath = path.join(initialState.parentWorkspace, "prd.md");
+    if (fs.existsSync(parentPrdPath)) {
+      originalPrd = fs.readFileSync(parentPrdPath, "utf-8");
+    }
+  }
+
   let normalExit = false;
   let lastChainContext = "";
   let cumulativeCostUsd = 0;
@@ -303,6 +314,7 @@ export async function runWorkspace(
       progressTxt,
       stuckHint,
       chainContext: lastChainContext || undefined,
+      originalPrd,
     });
 
     const currentStoryObj = parsedPrd.stories.find(
@@ -313,6 +325,10 @@ export async function runWorkspace(
     const storyTable = buildStoryTable(parsedPrd.stories, state, currentStory);
     const codebasePatterns = extractCodebasePatterns(progressTxt);
     const recentLearnings = extractRecentLearnings(progressTxt, 3);
+
+    const commitMessage = isRevision
+      ? `[Revision] ${storyTitle}`
+      : `[${storyTitle}]`;
 
     const prompt = replacePlaceholders(templateContent, {
       branch_name: state.branchName,
@@ -325,6 +341,7 @@ export async function runWorkspace(
       stuck_hint: stuckHint ?? "",
       progress_txt_path: progressPath,
       chain_context: lastChainContext,
+      commit_message: commitMessage,
     });
 
     if (currentStory !== previousStoryId) {
