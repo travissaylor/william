@@ -13,6 +13,7 @@ import {
   listGroupedWorkspaces,
   getWorkspaceStatus,
   resolveWorkspace,
+  updateParentAfterRevision,
 } from "./workspace.js";
 import { archiveWorkspace } from "./archive.js";
 import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
@@ -467,6 +468,27 @@ program
           },
           emitter,
         );
+
+        // Check if all revision items completed and update parent state
+        const finalRevisionState = loadState(
+          path.join(revisionDir, "state.json"),
+        );
+        const allComplete = Object.values(finalRevisionState.stories).every(
+          (s) => s.passes === true || s.passes === "skipped",
+        );
+
+        if (allComplete) {
+          const itemCount = Object.keys(finalRevisionState.stories).length;
+          updateParentAfterRevision(
+            resolved.workspaceDir,
+            revisionDir,
+            revisionNumber,
+            itemCount,
+          );
+          console.log(
+            `\nRevision ${revisionNumber} completed. Parent workspace updated.`,
+          );
+        }
       } finally {
         inkApp.unmount();
       }

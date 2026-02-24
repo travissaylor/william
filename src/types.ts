@@ -6,6 +6,13 @@ export interface StoryState {
   skipReason?: string;
 }
 
+export interface RevisionEntry {
+  number: number;
+  completedAt: string;
+  itemCount: number;
+  path: string;
+}
+
 export interface WorkspaceState {
   workspace: string;
   project: string;
@@ -17,4 +24,5 @@ export interface WorkspaceState {
   startedAt: string;
   parentWorkspace?: string;
   revisionNumber?: number;
+  revisions?: RevisionEntry[];
 }

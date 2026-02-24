@@ -3,11 +3,16 @@ import * as path from "path";
 import { createElement } from "react";
 import { render } from "ink";
 import { parsePrd } from "./prd/parser.js";
-import { initStateFromPrd, loadState, getCurrentStory } from "./prd/tracker.js";
+import {
+  initStateFromPrd,
+  loadState,
+  saveState,
+  getCurrentStory,
+} from "./prd/tracker.js";
 import { runWorkspace, WILLIAM_ROOT, type RunOpts } from "./runner.js";
 import { TuiEmitter } from "./ui/events.js";
 import { App } from "./ui/App.js";
-import type { WorkspaceState } from "./types.js";
+import type { WorkspaceState, RevisionEntry } from "./types.js";
 
 export interface ResolvedWorkspace {
   workspaceDir: string;
@@ -203,6 +208,33 @@ export function createRevisionWorkspace(
   return { revisionDir, revisionNumber };
 }
 
+/**
+ * After a revision workspace completes, update the parent workspace's state.json
+ * with a revisions array entry recording the completed revision.
+ */
+export function updateParentAfterRevision(
+  parentWorkspaceDir: string,
+  revisionDir: string,
+  revisionNumber: number,
+  itemCount: number,
+): void {
+  const parentStatePath = path.join(parentWorkspaceDir, "state.json");
+  const parentState = loadState(parentStatePath);
+
+  const entry: RevisionEntry = {
+    number: revisionNumber,
+    completedAt: new Date().toISOString(),
+    itemCount,
+    path: `revision-${revisionNumber}`,
+  };
+
+  const revisions = parentState.revisions ?? [];
+  revisions.push(entry);
+  parentState.revisions = revisions;
+
+  saveState(parentStatePath, parentState);
+}
+
 export async function startWorkspace(
   name: string,
   opts: RunOpts,
@@ -318,7 +350,13 @@ export function getWorkspaceStatus(name: string): WorkspaceStatus {
   const skipped = storyValues.filter((s) => s.passes === "skipped").length;
   const pending = storyValues.filter((s) => s.passes === false).length;
 
-  const summary = `${passed}/${total} complete, ${skipped} skipped, ${pending} pending${currentStory ? ` (current: ${currentStory})` : ""}`;
+  const revisionCount = state.revisions?.length ?? 0;
+  const revisionSuffix =
+    revisionCount > 0
+      ? ` [${revisionCount} ${revisionCount === 1 ? "revision" : "revisions"}]`
+      : "";
+
+  const summary = `${passed}/${total} complete, ${skipped} skipped, ${pending} pending${currentStory ? ` (current: ${currentStory})` : ""}${revisionSuffix}`;
 
   let runningStatus: "running" | "stopped" | "paused" = "running";
   if (fs.existsSync(path.join(resolved.workspaceDir, ".stopped"))) {
