@@ -137,7 +137,7 @@ function parseStories(content: string): ParsedStory[] {
     const rawMarkdown = [headingLine, ...currentLines].join("\n").trim();
 
     const cleanedHeading = currentHeadingText.replace(/^✅\s*/, "").trim();
-    const storyIdMatch = /^(US-\d+):\s*(.+)$/.exec(cleanedHeading);
+    const storyIdMatch = /^((?:US|RI)-\d+):\s*(.+)$/.exec(cleanedHeading);
 
     let id: string;
     let title: string;

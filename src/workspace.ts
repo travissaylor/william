@@ -136,6 +136,73 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
   fs.copyFileSync(prdPath, path.join(workspaceDir, "prd.md"));
 }
 
+export interface CreateRevisionWorkspaceOpts {
+  parentWorkspaceDir: string;
+  parentState: WorkspaceState;
+  plan: string;
+}
+
+export interface RevisionWorkspaceResult {
+  revisionDir: string;
+  revisionNumber: number;
+}
+
+/**
+ * Creates a child revision workspace inside the parent workspace directory.
+ * The revision workspace shares the parent's git branch and tracks revision items
+ * parsed from the approved plan.
+ */
+export function createRevisionWorkspace(
+  opts: CreateRevisionWorkspaceOpts,
+): RevisionWorkspaceResult {
+  const { parentWorkspaceDir, parentState, plan } = opts;
+
+  // Determine next available revision number
+  let revisionNumber = 1;
+  while (
+    fs.existsSync(path.join(parentWorkspaceDir, `revision-${revisionNumber}`))
+  ) {
+    revisionNumber++;
+  }
+
+  const revisionDir = path.join(
+    parentWorkspaceDir,
+    `revision-${revisionNumber}`,
+  );
+
+  // Wrap the plan in a parseable PRD structure
+  const prdContent = `# Revision Plan\n\n## User Stories\n\n${plan}`;
+
+  const parsedPrd = parsePrd(prdContent);
+
+  const state = initStateFromPrd(parsedPrd, {
+    workspace: `${parentState.workspace}/revision-${revisionNumber}`,
+    project: parentState.project,
+    targetDir: parentState.targetDir,
+    branchName: parentState.branchName,
+    sourceFile: path.join(revisionDir, "prd.md"),
+  });
+
+  // Add revision-specific fields
+  state.parentWorkspace = parentWorkspaceDir;
+  state.revisionNumber = revisionNumber;
+
+  fs.mkdirSync(path.join(revisionDir, "logs"), { recursive: true });
+  fs.writeFileSync(
+    path.join(revisionDir, "state.json"),
+    JSON.stringify(state, null, 2),
+    "utf-8",
+  );
+  fs.writeFileSync(
+    path.join(revisionDir, "progress.txt"),
+    "## Codebase Patterns\n(none yet)\n\n---\n",
+    "utf-8",
+  );
+  fs.writeFileSync(path.join(revisionDir, "prd.md"), prdContent, "utf-8");
+
+  return { revisionDir, revisionNumber };
+}
+
 export async function startWorkspace(
   name: string,
   opts: RunOpts,

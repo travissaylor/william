@@ -15,4 +15,6 @@ export interface WorkspaceState {
   stories: Record<string, StoryState>;
   currentStory: string | null;
   startedAt: string;
+  parentWorkspace?: string;
+  revisionNumber?: number;
 }

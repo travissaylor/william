@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { Command } from "commander";
 import {
   createWorkspace,
+  createRevisionWorkspace,
   startWorkspace,
   stopWorkspace,
   listGroupedWorkspaces,
@@ -420,12 +421,21 @@ program
         branchName: state.branchName,
       });
 
-      if (plan !== null) {
-        console.log("\nRevision plan approved.");
-      } else {
+      if (plan === null) {
         console.error("[william] Revision plan generation failed.");
         process.exit(1);
       }
+
+      const { revisionDir, revisionNumber } = createRevisionWorkspace({
+        parentWorkspaceDir: resolved.workspaceDir,
+        parentState: state,
+        plan,
+      });
+
+      console.log(
+        `\nRevision workspace created: ${resolved.projectName}/${resolved.workspaceName}/revision-${revisionNumber}`,
+      );
+      console.log(`  Path: ${revisionDir}`);
     } catch (err) {
       if (err instanceof Error && err.name === "ExitPromptError") {
         console.log("\nRevision cancelled.");
