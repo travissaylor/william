@@ -37,6 +37,51 @@ export function spawnInteractive(
   });
 }
 
+/**
+ * Spawns Claude and captures stdout while tee-ing it to the terminal.
+ * Used for plan generation where we need to extract structured output
+ * (e.g., <revision-plan> tags) while still showing progress to the user.
+ *
+ * Returns the exit code and the full captured output.
+ */
+export function spawnInteractiveCapture(
+  prompt: string,
+  opts?: { cwd?: string },
+): Promise<{ exitCode: number | null; output: string }> {
+  const cwd = opts?.cwd ?? process.cwd();
+
+  let child: ChildProcess;
+
+  if (prompt.length > 100_000) {
+    child = spawn("claude", [], {
+      stdio: ["pipe", "pipe", "inherit"],
+      cwd,
+    });
+    if (child.stdin) {
+      child.stdin.end(prompt);
+    }
+  } else {
+    child = spawn("claude", [prompt], {
+      stdio: ["inherit", "pipe", "inherit"],
+      cwd,
+    });
+  }
+
+  let output = "";
+
+  child.stdout?.on("data", (chunk: Buffer) => {
+    const text = chunk.toString();
+    output += text;
+    process.stdout.write(text);
+  });
+
+  return new Promise((resolve) => {
+    child.on("close", (exitCode) => {
+      resolve({ exitCode, output });
+    });
+  });
+}
+
 export const ClaudeAdapter: ToolAdapter = {
   name: "claude",
 

@@ -3,7 +3,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 import { input, confirm } from "@inquirer/prompts";
-import { spawnInteractive } from "./adapters/claude.js";
+import { spawnInteractiveCapture } from "./adapters/claude.js";
 import { replacePlaceholders } from "./template.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,26 +55,19 @@ export interface GeneratePlanOpts {
 }
 
 /**
- * Builds the revision plan prompt from the template and workspace context,
- * then spawns Claude interactively to generate a plan.
- *
- * Returns the raw plan text extracted from <revision-plan> tags, or null
- * if Claude exited with a non-zero code or no plan was found in output.
+ * Extracts the content between <revision-plan> and </revision-plan> XML tags.
  */
-export async function generateRevisionPlan(
-  opts: GeneratePlanOpts,
-): Promise<string | null> {
-  const { problems, workspaceDir, targetDir, branchName } = opts;
+export function extractPlanFromOutput(output: string): string | null {
+  const match = /<revision-plan>([\s\S]*?)<\/revision-plan>/.exec(output);
+  return match ? match[1].trim() : null;
+}
 
-  const templatePath = path.join(
-    __dirname,
-    "..",
-    "templates",
-    "revision-plan-instructions.md",
-  );
-  const template = fs.readFileSync(templatePath, "utf-8");
+/**
+ * Gathers workspace context used in plan generation prompts.
+ */
+function gatherContext(opts: GeneratePlanOpts) {
+  const { workspaceDir, targetDir, branchName } = opts;
 
-  // Gather context
   const progressPath = path.join(workspaceDir, "progress.txt");
   const progress = fs.existsSync(progressPath)
     ? fs.readFileSync(progressPath, "utf-8")
@@ -91,19 +84,67 @@ export async function generateRevisionPlan(
     : "(none)";
 
   const gitDiff = getGitDiff(targetDir, branchName);
+  const problemsList = opts.problems.map((p, i) => `${i + 1}. ${p}`).join("\n");
 
-  // Format problems as a numbered list
-  const problemsList = problems.map((p, i) => `${i + 1}. ${p}`).join("\n");
+  return { progress, originalPrd, stuckHints, gitDiff, problemsList };
+}
 
-  const prompt = replacePlaceholders(template, {
-    problems: problemsList,
-    progress,
-    git_diff: gitDiff,
-    original_prd: originalPrd,
-    stuck_hints: stuckHints,
+/**
+ * Builds the initial revision plan prompt from the template and workspace context.
+ */
+function buildInitialPrompt(opts: GeneratePlanOpts): string {
+  const templatePath = path.join(
+    __dirname,
+    "..",
+    "templates",
+    "revision-plan-instructions.md",
+  );
+  const template = fs.readFileSync(templatePath, "utf-8");
+  const ctx = gatherContext(opts);
+
+  return replacePlaceholders(template, {
+    problems: ctx.problemsList,
+    progress: ctx.progress,
+    git_diff: ctx.gitDiff,
+    original_prd: ctx.originalPrd,
+    stuck_hints: ctx.stuckHints,
   });
+}
 
-  const exitCode = await spawnInteractive(prompt, { cwd: targetDir });
+/**
+ * Builds a regeneration prompt that includes the previous plan and user feedback.
+ */
+function buildRegenerationPrompt(
+  opts: GeneratePlanOpts,
+  previousPlan: string,
+  feedback: string[],
+): string {
+  const initial = buildInitialPrompt(opts);
+
+  const feedbackSection = feedback.map((f, i) => `${i + 1}. ${f}`).join("\n");
+
+  return (
+    initial +
+    "\n\n---\n\n## Previous Plan\n\n" +
+    previousPlan +
+    "\n\n---\n\n## User Feedback\n\n" +
+    feedbackSection +
+    "\n\n---\n\n" +
+    "The user rejected the previous plan and provided the feedback above. " +
+    "Please regenerate the revision plan taking their feedback into account. " +
+    "Output the revised plan wrapped in `<revision-plan>...</revision-plan>` XML tags."
+  );
+}
+
+/**
+ * Spawns Claude with a prompt, captures output, and extracts the plan.
+ * Returns the extracted plan text or null on failure.
+ */
+async function spawnAndExtractPlan(
+  prompt: string,
+  cwd: string,
+): Promise<string | null> {
+  const { exitCode, output } = await spawnInteractiveCapture(prompt, { cwd });
 
   if (exitCode !== 0) {
     console.error(
@@ -112,7 +153,67 @@ export async function generateRevisionPlan(
     return null;
   }
 
-  return null;
+  return extractPlanFromOutput(output);
+}
+
+/**
+ * Generates a revision plan and runs an approval loop where the user can
+ * approve the plan or provide feedback to regenerate it.
+ *
+ * Returns the approved plan text, or null if generation fails.
+ */
+export async function generateRevisionPlan(
+  opts: GeneratePlanOpts,
+): Promise<string | null> {
+  const prompt = buildInitialPrompt(opts);
+  let plan = await spawnAndExtractPlan(prompt, opts.targetDir);
+
+  if (!plan) {
+    console.error(
+      "\n[william] Could not extract a revision plan from Claude's output.",
+    );
+    return null;
+  }
+
+  const feedback: string[] = [];
+  let approved = false;
+
+  while (!approved) {
+    console.log("\n--- Revision Plan ---\n");
+    console.log(plan);
+    console.log("\n--- End of Plan ---\n");
+
+    const response = await input({
+      message: "Approve this plan? (yes / or give feedback):",
+    });
+
+    const normalized = response.trim().toLowerCase();
+    if (
+      normalized === "yes" ||
+      normalized === "y" ||
+      normalized === "approve"
+    ) {
+      approved = true;
+    } else {
+      feedback.push(response.trim());
+
+      console.log("\nRegenerating plan with your feedback...\n");
+
+      const regenPrompt = buildRegenerationPrompt(opts, plan, feedback);
+      const newPlan = await spawnAndExtractPlan(regenPrompt, opts.targetDir);
+
+      if (!newPlan) {
+        console.error(
+          "\n[william] Could not extract a revision plan from Claude's output.",
+        );
+        return null;
+      }
+
+      plan = newPlan;
+    }
+  }
+
+  return plan;
 }
 
 /**

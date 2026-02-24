@@ -421,7 +421,10 @@ program
       });
 
       if (plan !== null) {
-        console.log("\nRevision plan generated.");
+        console.log("\nRevision plan approved.");
+      } else {
+        console.error("[william] Revision plan generation failed.");
+        process.exit(1);
       }
     } catch (err) {
       if (err instanceof Error && err.name === "ExitPromptError") {
