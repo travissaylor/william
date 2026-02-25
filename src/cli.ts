@@ -68,6 +68,27 @@ export function buildPrdPrompt(options: {
   return prompt;
 }
 
+export function buildProblemPrompt(options: { description?: string }): string {
+  const templatePath = path.join(
+    __dirname,
+    "..",
+    "templates",
+    "problem-statement-instructions.md",
+  );
+  const template = fs.readFileSync(templatePath, "utf-8");
+
+  let prompt = template;
+
+  if (options.description) {
+    prompt += `\n\n## Feature Idea\n\n${options.description}`;
+  } else {
+    prompt +=
+      "\n\nNo feature idea was provided. Start by asking the user to describe the idea or problem they want to explore.";
+  }
+
+  return prompt;
+}
+
 function readPackageVersion(): string {
   try {
     const pkgPath = path.join(__dirname, "..", "package.json");
