@@ -3,7 +3,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 import { input, confirm } from "@inquirer/prompts";
-import { spawnInteractiveCapture } from "./adapters/claude.js";
+import { spawnCapture } from "./adapters/claude.js";
 import { replacePlaceholders } from "./template.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -112,53 +112,34 @@ function buildInitialPrompt(opts: GeneratePlanOpts): string {
 }
 
 /**
- * Builds a regeneration prompt that includes the previous plan and user feedback.
- */
-function buildRegenerationPrompt(
-  opts: GeneratePlanOpts,
-  previousPlan: string,
-  feedback: string[],
-): string {
-  const initial = buildInitialPrompt(opts);
-
-  const feedbackSection = feedback.map((f, i) => `${i + 1}. ${f}`).join("\n");
-
-  return (
-    initial +
-    "\n\n---\n\n## Previous Plan\n\n" +
-    previousPlan +
-    "\n\n---\n\n## User Feedback\n\n" +
-    feedbackSection +
-    "\n\n---\n\n" +
-    "The user rejected the previous plan and provided the feedback above. " +
-    "Please regenerate the revision plan taking their feedback into account. " +
-    "Output the revised plan wrapped in `<revision-plan>...</revision-plan>` XML tags."
-  );
-}
-
-/**
  * Spawns Claude with a prompt, captures output, and extracts the plan.
- * Returns the extracted plan text or null on failure.
+ * Supports resuming a previous session for follow-up feedback.
+ * Returns the extracted plan text, session ID, or null on failure.
  */
 async function spawnAndExtractPlan(
   prompt: string,
   cwd: string,
-): Promise<string | null> {
-  const { exitCode, output } = await spawnInteractiveCapture(prompt, { cwd });
+  resumeSessionId?: string,
+): Promise<{ plan: string | null; sessionId: string | null }> {
+  const { exitCode, output, sessionId } = await spawnCapture(prompt, {
+    cwd,
+    resumeSessionId,
+  });
 
   if (exitCode !== 0) {
     console.error(
       `[william] Claude process exited with code ${exitCode ?? "unknown"}`,
     );
-    return null;
+    return { plan: null, sessionId };
   }
 
-  return extractPlanFromOutput(output);
+  return { plan: extractPlanFromOutput(output), sessionId };
 }
 
 /**
  * Generates a revision plan and runs an approval loop where the user can
  * approve the plan or provide feedback to regenerate it.
+ * Uses --resume to continue the same Claude session for feedback rounds.
  *
  * Returns the approved plan text, or null if generation fails.
  */
@@ -166,7 +147,7 @@ export async function generateRevisionPlan(
   opts: GeneratePlanOpts,
 ): Promise<string | null> {
   const prompt = buildInitialPrompt(opts);
-  let plan = await spawnAndExtractPlan(prompt, opts.targetDir);
+  let { plan, sessionId } = await spawnAndExtractPlan(prompt, opts.targetDir);
 
   if (!plan) {
     console.error(
@@ -175,7 +156,6 @@ export async function generateRevisionPlan(
     return null;
   }
 
-  const feedback: string[] = [];
   let approved = false;
 
   while (!approved) {
@@ -195,21 +175,28 @@ export async function generateRevisionPlan(
     ) {
       approved = true;
     } else {
-      feedback.push(response.trim());
-
       console.log("\nRegenerating plan with your feedback...\n");
 
-      const regenPrompt = buildRegenerationPrompt(opts, plan, feedback);
-      const newPlan = await spawnAndExtractPlan(regenPrompt, opts.targetDir);
+      const feedbackPrompt =
+        `I have the following feedback on the plan:\n\n${response.trim()}\n\n` +
+        "Please regenerate the revision plan taking this feedback into account. " +
+        "Output the revised plan wrapped in `<revision-plan>...</revision-plan>` XML tags.";
 
-      if (!newPlan) {
+      const result = await spawnAndExtractPlan(
+        feedbackPrompt,
+        opts.targetDir,
+        sessionId ?? undefined,
+      );
+
+      if (!result.plan) {
         console.error(
           "\n[william] Could not extract a revision plan from Claude's output.",
         );
         return null;
       }
 
-      plan = newPlan;
+      plan = result.plan;
+      sessionId = result.sessionId;
     }
   }
 

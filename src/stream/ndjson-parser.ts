@@ -14,6 +14,7 @@ export class NdjsonParser extends EventEmitter {
     durationMs: 0,
     numTurns: 0,
     resultSubtype: null,
+    sessionId: null,
   };
 
   feed(chunk: Buffer | string): void {
@@ -53,17 +54,31 @@ export class NdjsonParser extends EventEmitter {
     this.session.events.push(msg);
     this.emit("message", msg);
 
-    if (msg.type === "assistant") {
-      this.extractAssistantContent(msg.message.content);
-    } else if (msg.type === "user") {
-      this.extractUserContent(msg.message.content);
-    } else if (msg.type === "result") {
-      this.session.totalCostUsd = msg.total_cost_usd;
-      this.session.inputTokens = msg.usage.input_tokens;
-      this.session.outputTokens = msg.usage.output_tokens;
-      this.session.durationMs = msg.duration_ms;
-      this.session.numTurns = msg.num_turns;
-      this.session.resultSubtype = msg.subtype;
+    switch (msg.type) {
+      case "system":
+        this.session.sessionId = msg.session_id;
+        break;
+      case "assistant":
+        this.extractAssistantContent(msg.message.content);
+        break;
+      case "user":
+        this.extractUserContent(msg.message.content);
+        break;
+      case "result":
+        this.session.totalCostUsd = msg.total_cost_usd;
+        if (msg.usage) {
+          this.session.inputTokens = msg.usage.input_tokens;
+          this.session.outputTokens = msg.usage.output_tokens;
+        }
+        this.session.durationMs = msg.duration_ms;
+        this.session.numTurns = msg.num_turns;
+        this.session.resultSubtype = msg.subtype;
+        break;
+      default: {
+        const _exhaustive: never = msg;
+        void _exhaustive;
+        break;
+      }
     }
   }
 
