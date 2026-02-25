@@ -425,6 +425,32 @@ program
   });
 
 program
+  .command("problem")
+  .description(
+    "Start a guided problem statement session with an interactive Claude session",
+  )
+  .argument("[description]", "Rough feature idea to explore")
+  .action(async (description?: string) => {
+    try {
+      const prompt = buildProblemPrompt({ description });
+
+      const exitCode = await spawnInteractive(prompt);
+
+      if (exitCode !== 0) {
+        console.error(
+          `[william] Claude process exited with code ${exitCode ?? "unknown"}`,
+        );
+        process.exit(1);
+      }
+    } catch (err) {
+      console.error(
+        `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  });
+
+program
   .command("revise <workspace-name>")
   .description("Start a revision flow for a completed workspace")
   .action(async (workspaceName: string) => {
