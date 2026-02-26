@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import type { ToolAdapter, AdapterResult } from "./types.js";
 import { NdjsonParser } from "../stream/ndjson-parser.js";
-import type { StreamSession } from "../stream/types.js";
+import type { StreamMessage, StreamSession } from "../stream/types.js";
 
 /**
  * Spawns Claude in interactive mode (stdio: "inherit") for conversational use.
@@ -71,21 +71,15 @@ export function spawnCapture(
 
   const parser = new NdjsonParser();
 
-  parser.on(
-    "message",
-    (msg: {
-      type: string;
-      message?: { content: { type: string; text?: string }[] };
-    }) => {
-      if (msg.type === "assistant" && msg.message) {
-        for (const block of msg.message.content) {
-          if (block.type === "text" && block.text) {
-            process.stdout.write(block.text);
-          }
+  parser.on("message", (msg: StreamMessage) => {
+    if (msg.type === "assistant") {
+      for (const block of msg.message.content) {
+        if (block.type === "text") {
+          process.stdout.write(block.text);
         }
       }
-    },
-  );
+    }
+  });
 
   return new Promise((resolve) => {
     child.stdout.on("data", (chunk: Buffer) => {

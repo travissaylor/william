@@ -149,6 +149,12 @@ export async function generateRevisionPlan(
   const prompt = buildInitialPrompt(opts);
   let { plan, sessionId } = await spawnAndExtractPlan(prompt, opts.targetDir);
 
+  if (!sessionId) {
+    console.warn(
+      "[william] No session ID returned; feedback rounds will start fresh sessions.",
+    );
+  }
+
   if (!plan) {
     console.error(
       "\n[william] Could not extract a revision plan from Claude's output.",
