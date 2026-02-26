@@ -1,6 +1,8 @@
 import { spawn } from "child_process";
 import type { ChildProcess } from "child_process";
 import type { ToolAdapter, AdapterResult } from "./types.js";
+import { NdjsonParser } from "../stream/ndjson-parser.js";
+import type { StreamMessage, StreamSession } from "../stream/types.js";
 
 /**
  * Spawns Claude in interactive mode (stdio: "inherit") for conversational use.
@@ -38,46 +40,60 @@ export function spawnInteractive(
 }
 
 /**
- * Spawns Claude and captures stdout while tee-ing it to the terminal.
- * Used for plan generation where we need to extract structured output
- * (e.g., <revision-plan> tags) while still showing progress to the user.
+ * Spawns Claude in non-interactive print mode with stream-json output.
+ * Parses the NDJSON stream to tee assistant text to stdout and extract
+ * the session ID (for use with --resume on follow-up calls).
  *
- * Returns the exit code and the full captured output.
+ * Returns the exit code, full assistant text, and session ID.
  */
-export function spawnInteractiveCapture(
+export function spawnCapture(
   prompt: string,
-  opts?: { cwd?: string },
-): Promise<{ exitCode: number | null; output: string }> {
+  opts?: { cwd?: string; resumeSessionId?: string },
+): Promise<{
+  exitCode: number | null;
+  output: string;
+  sessionId: string | null;
+}> {
   const cwd = opts?.cwd ?? process.cwd();
 
-  let child: ChildProcess;
-
-  if (prompt.length > 100_000) {
-    child = spawn("claude", [], {
-      stdio: ["pipe", "pipe", "inherit"],
-      cwd,
-    });
-    if (child.stdin) {
-      child.stdin.end(prompt);
-    }
-  } else {
-    child = spawn("claude", [prompt], {
-      stdio: ["inherit", "pipe", "inherit"],
-      cwd,
-    });
+  const args = ["--output-format", "stream-json", "--verbose"];
+  if (opts?.resumeSessionId) {
+    args.push("--resume", opts.resumeSessionId);
   }
 
-  let output = "";
+  const child = spawn("claude", args, {
+    stdio: ["pipe", "pipe", "inherit"],
+    cwd,
+  });
 
-  child.stdout?.on("data", (chunk: Buffer) => {
-    const text = chunk.toString();
-    output += text;
-    process.stdout.write(text);
+  child.stdin.write(prompt, "utf-8");
+  child.stdin.end();
+
+  const parser = new NdjsonParser();
+
+  parser.on("message", (msg: StreamMessage) => {
+    if (msg.type === "assistant") {
+      for (const block of msg.message.content) {
+        if (block.type === "text") {
+          process.stdout.write(block.text);
+        }
+      }
+    }
   });
 
   return new Promise((resolve) => {
+    child.stdout.on("data", (chunk: Buffer) => {
+      parser.feed(chunk);
+    });
+
     child.on("close", (exitCode) => {
-      resolve({ exitCode, output });
+      parser.flush();
+      const session: StreamSession = parser.getSession();
+      resolve({
+        exitCode,
+        output: session.fullText,
+        sessionId: session.sessionId,
+      });
     });
   });
 }

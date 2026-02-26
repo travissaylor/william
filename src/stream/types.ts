@@ -45,7 +45,7 @@ export interface StreamResultMessage {
   type: "result";
   subtype: "success" | "error_max_turns" | "error_tool" | "error_unknown";
   total_cost_usd: number;
-  usage: { input_tokens: number; output_tokens: number };
+  usage?: { input_tokens: number; output_tokens: number };
   duration_ms: number;
   num_turns: number;
   result: string;
@@ -68,4 +68,5 @@ export interface StreamSession {
   durationMs: number;
   numTurns: number;
   resultSubtype: string | null;
+  sessionId: string | null;
 }

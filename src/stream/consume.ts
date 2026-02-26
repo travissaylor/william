@@ -76,8 +76,8 @@ export function consumeStreamOutput(
     if (msg.type === "result") {
       emitter.result(
         msg.total_cost_usd,
-        msg.usage.input_tokens,
-        msg.usage.output_tokens,
+        msg.usage?.input_tokens ?? 0,
+        msg.usage?.output_tokens ?? 0,
         msg.duration_ms,
       );
     }

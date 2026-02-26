@@ -72,12 +72,13 @@ const RESULT_SUCCESS = JSON.stringify({
 
 describe("NdjsonParser", () => {
   describe("single message parsing", () => {
-    it("parses a system init message", () => {
+    it("parses a system init message and extracts sessionId", () => {
       const parser = new NdjsonParser();
       parser.feed(SYSTEM_INIT + "\n");
       const session = parser.getSession();
       expect(session.events).toHaveLength(1);
       expect(session.events[0].type).toBe("system");
+      expect(session.sessionId).toBe("sess-123");
     });
 
     it("parses an assistant text message and accumulates fullText", () => {
@@ -86,6 +87,24 @@ describe("NdjsonParser", () => {
       const session = parser.getSession();
       expect(session.fullText).toBe("Hello, I will help you.");
       expect(session.events).toHaveLength(1);
+    });
+
+    it("handles result message without usage field", () => {
+      const parser = new NdjsonParser();
+      const resultNoUsage = JSON.stringify({
+        type: "result",
+        subtype: "success",
+        total_cost_usd: 0.01,
+        duration_ms: 5000,
+        num_turns: 1,
+        result: "done",
+      });
+      parser.feed(resultNoUsage + "\n");
+      const session = parser.getSession();
+      expect(session.totalCostUsd).toBe(0.01);
+      expect(session.inputTokens).toBe(0);
+      expect(session.outputTokens).toBe(0);
+      expect(session.durationMs).toBe(5000);
     });
 
     it("parses a result message and extracts cost/usage/duration", () => {

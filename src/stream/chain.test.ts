@@ -14,6 +14,7 @@ function makeSession(overrides: Partial<StreamSession> = {}): StreamSession {
     durationMs: 0,
     numTurns: 0,
     resultSubtype: null,
+    sessionId: null,
     ...overrides,
   };
 }
