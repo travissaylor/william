@@ -45,6 +45,43 @@ export function pushBranch(branchName: string, worktreePath: string): void {
   }
 }
 
+export interface ExistingPr {
+  number: number;
+  url: string;
+}
+
+/**
+ * Check whether a PR already exists for the given branch targeting main.
+ * Returns the PR number and URL if found, or null if no PR exists.
+ */
+export function findExistingPr(
+  branchName: string,
+  worktreePath: string,
+): ExistingPr | null {
+  let output: string;
+  try {
+    output = execSync(
+      `gh pr list --head ${branchName} --base main --json number,url --limit 1`,
+      { cwd: worktreePath, stdio: "pipe" },
+    ).toString();
+  } catch (err) {
+    const stderr =
+      err instanceof Error && "stderr" in err
+        ? String((err as NodeJS.ErrnoException & { stderr: Buffer }).stderr)
+        : "";
+    const message =
+      stderr.trim() || (err instanceof Error ? err.message : String(err));
+    throw new Error(`Failed to check for existing PR: ${message}`);
+  }
+
+  const prs = JSON.parse(output) as { number: number; url: string }[];
+  if (prs.length === 0) {
+    return null;
+  }
+
+  return { number: prs[0].number, url: prs[0].url };
+}
+
 export function prCommand(workspaceName: string, options: PrOptions): void {
   const resolved = resolveWorkspace(workspaceName);
   const statePath = `${resolved.workspaceDir}/state.json`;
@@ -66,4 +103,8 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
   if (!options.dryRun) {
     pushBranch(state.branchName, state.worktreePath);
   }
+
+  // US-003: Detect existing PR for branch (result used in US-005)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const existingPr = findExistingPr(state.branchName, state.worktreePath);
 }
