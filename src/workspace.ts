@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 import { createElement } from "react";
 import { render } from "ink";
 import { parsePrd } from "./prd/parser.js";
@@ -180,15 +181,49 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
   const rawMarkdown = fs.readFileSync(prdPath, "utf-8");
   const parsedPrd = parsePrd(rawMarkdown);
 
+  // Create workspace directory structure first
+  fs.mkdirSync(path.join(workspaceDir, "logs"), { recursive: true });
+
+  // Create git worktree for isolation
+  const worktreePath = path.join(workspaceDir, "worktree");
+  try {
+    // Try creating with a new branch first
+    execSync(
+      `git worktree add ${JSON.stringify(worktreePath)} -b ${JSON.stringify(opts.branchName)}`,
+      {
+        cwd: resolvedTarget,
+        stdio: "pipe",
+      },
+    );
+  } catch {
+    // Branch may already exist — try without -b to reuse it
+    try {
+      execSync(
+        `git worktree add ${JSON.stringify(worktreePath)} ${JSON.stringify(opts.branchName)}`,
+        {
+          cwd: resolvedTarget,
+          stdio: "pipe",
+        },
+      );
+    } catch (err) {
+      // Clean up the partially created workspace directory
+      fs.rmSync(workspaceDir, { recursive: true, force: true });
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Failed to create git worktree for branch "${opts.branchName}": ${msg}`,
+      );
+    }
+  }
+
   const state = initStateFromPrd(parsedPrd, {
     workspace: name,
     project: projectName,
     targetDir: resolvedTarget,
     branchName: opts.branchName,
     sourceFile: prdPath,
+    worktreePath,
   });
 
-  fs.mkdirSync(path.join(workspaceDir, "logs"), { recursive: true });
   fs.writeFileSync(
     path.join(workspaceDir, "state.json"),
     JSON.stringify(state, null, 2),
