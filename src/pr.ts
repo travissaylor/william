@@ -285,6 +285,17 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
     );
   }
 
+  // US-006: Warn on incomplete workspace
+  const incompleteStories = Object.entries(state.stories)
+    .filter(([, story]) => story.passes !== true)
+    .map(([id]) => id);
+
+  if (incompleteStories.length > 0) {
+    console.warn(
+      `Warning: ${incompleteStories.length} incomplete ${incompleteStories.length === 1 ? "story" : "stories"}: ${incompleteStories.join(", ")}`,
+    );
+  }
+
   // US-002: Push workspace branch to remote (skip if dry run)
   if (!options.dryRun) {
     pushBranch(state.branchName, state.worktreePath);
