@@ -14,6 +14,7 @@ import { runWorkspace, WILLIAM_ROOT, type RunOpts } from "./runner.js";
 import { TuiEmitter } from "./ui/events.js";
 import { App } from "./ui/App.js";
 import type { WorkspaceState, RevisionEntry } from "./types.js";
+import { loadProjectConfig } from "./config.js";
 
 export interface ResolvedWorkspace {
   workspaceDir: string;
@@ -183,6 +184,32 @@ function installWorktreeDeps(worktreePath: string, workspaceDir: string): void {
   }
 }
 
+/**
+ * Load project config from the target directory and run each setupCommands
+ * entry sequentially in the worktree. Failures log a warning but do not abort.
+ */
+export function runSetupCommands(
+  targetDir: string,
+  worktreePath: string,
+): void {
+  const config = loadProjectConfig(targetDir);
+  if (!config?.setupCommands?.length) return;
+
+  for (const cmd of config.setupCommands) {
+    console.log(`[william] Running setup: ${cmd}`);
+    const result = spawnSync(cmd, {
+      shell: true,
+      cwd: worktreePath,
+      stdio: "inherit",
+    });
+    if (result.status !== 0) {
+      console.error(
+        `[william] Warning: setup command failed: ${cmd} (exit code ${result.status})`,
+      );
+    }
+  }
+}
+
 export interface CreateWorkspaceOpts {
   targetDir: string;
   prdFile: string;
@@ -258,6 +285,9 @@ export function createWorkspace(
 
   // Install dependencies in the worktree if a known lockfile is present
   installWorktreeDeps(worktreePath, workspaceDir);
+
+  // Run project-level setup commands if configured
+  runSetupCommands(resolvedTarget, worktreePath);
 
   const state = initStateFromPrd(parsedPrd, {
     workspace: name,

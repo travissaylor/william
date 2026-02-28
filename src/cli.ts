@@ -18,13 +18,16 @@ import {
 } from "./workspace.js";
 import { archiveWorkspace } from "./archive.js";
 import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
-import { runNewWizard } from "./wizard.js";
+import { runNewWizard, buildPrdWizardResult } from "./wizard.js";
+import { runInit } from "./init.js";
+import { loadProjectConfig } from "./config.js";
 import {
   collectRevisionProblems,
   generateRevisionPlan,
 } from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
 import { resolveTemplatePath } from "./paths.js";
+import { buildPrdPrompt } from "./prd-prompt.js";
 import { loadState } from "./prd/tracker.js";
 import { prCommand } from "./pr.js";
 import { runWorkspace } from "./runner.js";
@@ -32,38 +35,6 @@ import { TuiEmitter } from "./ui/events.js";
 import { App } from "./ui/App.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-export function buildPrdPrompt(options: {
-  description?: string;
-  output?: string;
-}): string {
-  const templatePath = resolveTemplatePath("prd-instructions.md");
-  const template = fs.readFileSync(templatePath, "utf-8");
-
-  let prompt = template;
-
-  prompt += "\n\n## Agent Instructions\n\n";
-  prompt +=
-    "Wrap the final PRD in `<prd>...</prd>` XML tags so it can be extracted programmatically.\n";
-  prompt +=
-    "\nAfter generating the PRD, you MUST write it to disk using your file-writing tools (Write tool). Create any parent directories if needed.\n";
-
-  if (options.output) {
-    prompt += `\nThe user specified an output path: \`${options.output}\`. Save the PRD to that exact path.\n`;
-  } else {
-    prompt +=
-      "\nNo output path was specified. The default save location is `prds/<feature-name>.md` (where feature-name is kebab-case derived from the PRD title). Ask the user where to save if they haven't specified, mentioning the default `prds/<feature-name>.md`.\n";
-  }
-
-  if (options.description) {
-    prompt += `\n\n## Feature Description\n\n${options.description}`;
-  } else {
-    prompt +=
-      "\n\nNo feature description was provided. Start by asking the user to describe the feature they want to build.";
-  }
-
-  return prompt;
-}
 
 export function buildProblemPrompt(options: { description?: string }): string {
   const templatePath = resolveTemplatePath("problem-statement-instructions.md");
@@ -103,9 +74,12 @@ program
 program
   .command("new")
   .description("Interactive wizard to create a new workspace")
-  .action(async () => {
+  .option("-p, --prd <path>", "PRD file path — skip wizard and use defaults")
+  .action(async (options: { prd?: string }) => {
     try {
-      const result = await runNewWizard();
+      const result = options.prd
+        ? buildPrdWizardResult(options.prd)
+        : await runNewWizard();
 
       const worktreePath = createWorkspace(result.workspaceName, {
         targetDir: result.targetDir,
@@ -125,6 +99,24 @@ program
     } catch (err) {
       if (err instanceof Error && err.name === "ExitPromptError") {
         console.log("\nWizard cancelled.");
+        return;
+      }
+      console.error(
+        `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  });
+
+program
+  .command("init")
+  .description("Initialize .william/config.json in the current project")
+  .action(async () => {
+    try {
+      await runInit();
+    } catch (err) {
+      if (err instanceof Error && err.name === "ExitPromptError") {
+        console.log("\nInit cancelled.");
         return;
       }
       console.error(
@@ -363,14 +355,32 @@ program
   .option("-o, --output <path>", "Output path for the generated PRD file")
   .action(async (description?: string, options?: { output?: string }) => {
     try {
-      const prompt = buildPrdPrompt({ description, output: options?.output });
+      // Determine default output directory based on project config
+      const cwd = process.cwd();
+      const config = loadProjectConfig(cwd);
+      let defaultOutputDir: string;
+      if (config) {
+        defaultOutputDir = config.prdOutput
+          ? path.resolve(cwd, config.prdOutput)
+          : path.resolve(cwd, ".william", "prds");
+      } else {
+        defaultOutputDir = path.resolve("prds");
+      }
+
+      const prompt = buildPrdPrompt({
+        description,
+        output: options?.output,
+        defaultOutputDir: config
+          ? path.relative(cwd, defaultOutputDir) || "."
+          : undefined,
+      });
 
       // Ensure target directory exists before spawning Claude
       if (options?.output) {
         const outputDir = path.dirname(path.resolve(options.output));
         fs.mkdirSync(outputDir, { recursive: true });
       } else {
-        fs.mkdirSync(path.resolve("prds"), { recursive: true });
+        fs.mkdirSync(defaultOutputDir, { recursive: true });
       }
 
       const startTime = Date.now();
@@ -391,21 +401,24 @@ program
           console.log(`\nPRD saved to: ${options.output}`);
         }
       } else {
-        // Find the most recently modified .md file in prds/ created during this session
-        const prdsDir = path.resolve("prds");
-        if (fs.existsSync(prdsDir)) {
+        // Find the most recently modified .md file in the default output dir
+        if (fs.existsSync(defaultOutputDir)) {
           const files = fs
-            .readdirSync(prdsDir)
+            .readdirSync(defaultOutputDir)
             .filter((f) => f.endsWith(".md"))
             .map((f) => ({
               name: f,
-              mtime: fs.statSync(path.join(prdsDir, f)).mtimeMs,
+              mtime: fs.statSync(path.join(defaultOutputDir, f)).mtimeMs,
             }))
             .filter((f) => f.mtime >= startTime)
             .sort((a, b) => b.mtime - a.mtime);
 
           if (files.length > 0) {
-            console.log(`\nPRD saved to: prds/${files[0].name}`);
+            const relativePath = path.relative(
+              cwd,
+              path.join(defaultOutputDir, files[0].name),
+            );
+            console.log(`\nPRD saved to: ${relativePath}`);
           }
         }
       }
