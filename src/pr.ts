@@ -211,6 +211,63 @@ export function generatePrDescription(state: WorkspaceState): PrDescription {
   return { title: parsed.title, body: parsed.body };
 }
 
+/**
+ * Create a new PR or update an existing one using the `gh` CLI.
+ * Returns the PR URL on success.
+ */
+export function createOrUpdatePr(
+  existingPr: ExistingPr | null,
+  description: PrDescription,
+  worktreePath: string,
+): string {
+  if (existingPr) {
+    // Update existing PR
+    try {
+      execSync(
+        `gh pr edit ${existingPr.number} --title ${shellEscape(description.title)} --body ${shellEscape(description.body)}`,
+        { cwd: worktreePath, stdio: "pipe" },
+      );
+    } catch (err) {
+      const stderr =
+        err instanceof Error && "stderr" in err
+          ? String((err as NodeJS.ErrnoException & { stderr: Buffer }).stderr)
+          : "";
+      const message =
+        stderr.trim() || (err instanceof Error ? err.message : String(err));
+      throw new Error(`Failed to update PR #${existingPr.number}: ${message}`);
+    }
+    return existingPr.url;
+  }
+
+  // Create new PR
+  let output: string;
+  try {
+    output = execSync(
+      `gh pr create --base main --title ${shellEscape(description.title)} --body ${shellEscape(description.body)}`,
+      { cwd: worktreePath, stdio: "pipe" },
+    ).toString();
+  } catch (err) {
+    const stderr =
+      err instanceof Error && "stderr" in err
+        ? String((err as NodeJS.ErrnoException & { stderr: Buffer }).stderr)
+        : "";
+    const message =
+      stderr.trim() || (err instanceof Error ? err.message : String(err));
+    throw new Error(`Failed to create PR: ${message}`);
+  }
+
+  // gh pr create prints the URL to stdout
+  const url = output.trim();
+  return url;
+}
+
+/**
+ * Escape a string for safe use as a shell argument.
+ */
+function shellEscape(str: string): string {
+  return "'" + str.replace(/'/g, "'\\''") + "'";
+}
+
 export function prCommand(workspaceName: string, options: PrOptions): void {
   const resolved = resolveWorkspace(workspaceName);
   const statePath = `${resolved.workspaceDir}/state.json`;
@@ -234,10 +291,19 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
   }
 
   // US-003: Detect existing PR for branch (result used in US-005)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const existingPr = findExistingPr(state.branchName, state.worktreePath);
 
   // US-004: Generate PR title and description via Claude
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const prDescription = generatePrDescription(state);
+
+  // US-005: Create or update the GitHub PR (skip if dry run)
+  if (options.dryRun) {
+    console.log("Dry run — no PR created\n");
+    console.log(`Title: ${prDescription.title}\n`);
+    console.log(prDescription.body);
+    return;
+  }
+
+  const prUrl = createOrUpdatePr(existingPr, prDescription, state.worktreePath);
+  console.log(prUrl);
 }
