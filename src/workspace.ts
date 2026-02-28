@@ -375,6 +375,16 @@ export function stopWorkspace(name: string): void {
   console.log(
     `[william] Stop signal written for workspace "${resolved.projectName}/${resolved.workspaceName}".`,
   );
+
+  const statePath = path.join(resolved.workspaceDir, "state.json");
+  if (fs.existsSync(statePath)) {
+    const state = loadState(statePath);
+    if (state.worktreePath) {
+      console.log(
+        `Workspace stopped. Worktree with in-progress work is at: ${state.worktreePath}`,
+      );
+    }
+  }
 }
 
 export function listWorkspaces(): string[] {
