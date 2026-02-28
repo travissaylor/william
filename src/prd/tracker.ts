@@ -8,6 +8,7 @@ export interface InitStateOpts {
   targetDir: string;
   branchName: string;
   sourceFile: string;
+  worktreePath?: string;
 }
 
 export function loadState(statePath: string): WorkspaceState {
@@ -101,6 +102,7 @@ export function initStateFromPrd(
     targetDir: opts.targetDir,
     branchName: opts.branchName,
     sourceFile: opts.sourceFile,
+    ...(opts.worktreePath ? { worktreePath: opts.worktreePath } : {}),
     stories,
     currentStory: firstStoryId,
     startedAt: new Date().toISOString(),

@@ -19,6 +19,7 @@ export interface WorkspaceState {
   targetDir: string;
   branchName: string;
   sourceFile: string;
+  worktreePath?: string;
   stories: Record<string, StoryState>;
   currentStory: string | null;
   startedAt: string;
