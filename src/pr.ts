@@ -1,7 +1,9 @@
 import * as fs from "fs";
-import { execSync } from "child_process";
+import { execSync, spawnSync } from "child_process";
 import { resolveWorkspace } from "./workspace.js";
 import { loadState } from "./prd/tracker.js";
+import { resolveTemplatePath } from "./paths.js";
+import type { WorkspaceState } from "./types.js";
 
 export interface PrOptions {
   draft?: boolean;
@@ -82,6 +84,133 @@ export function findExistingPr(
   return { number: prs[0].number, url: prs[0].url };
 }
 
+export interface PrDescription {
+  title: string;
+  body: string;
+}
+
+const MAX_DIFF_BYTES = 100_000;
+
+function getGitDiff(branchName: string, worktreePath: string): string {
+  try {
+    const diff = execSync(`git diff main...${branchName}`, {
+      cwd: worktreePath,
+      stdio: "pipe",
+      maxBuffer: 10 * 1024 * 1024,
+    }).toString();
+    if (diff.length > MAX_DIFF_BYTES) {
+      return (
+        diff.slice(0, MAX_DIFF_BYTES) +
+        "\n\n[diff truncated — exceeded 100KB limit]"
+      );
+    }
+    return diff;
+  } catch {
+    return "(unable to generate diff)";
+  }
+}
+
+function getGitLog(branchName: string, worktreePath: string): string {
+  try {
+    return execSync(`git log main..${branchName} --oneline`, {
+      cwd: worktreePath,
+      stdio: "pipe",
+    }).toString();
+  } catch {
+    return "(unable to generate log)";
+  }
+}
+
+function formatStoryStatus(state: WorkspaceState): string {
+  const lines: string[] = [];
+  for (const [id, story] of Object.entries(state.stories)) {
+    if (story.passes === true) {
+      lines.push(`- [x] ${id} — complete`);
+    } else if (story.passes === "skipped") {
+      lines.push(
+        `- [ ] ${id} — skipped${story.skipReason ? `: ${story.skipReason}` : ""}`,
+      );
+    } else {
+      lines.push(`- [ ] ${id} — pending`);
+    }
+  }
+  return lines.join("\n");
+}
+
+export function generatePrDescription(state: WorkspaceState): PrDescription {
+  if (!state.worktreePath) {
+    throw new Error("Workspace has no worktree path");
+  }
+  const worktreePath = state.worktreePath;
+  const branchName = state.branchName;
+
+  // Load PRD content
+  const prdContent = fs.existsSync(state.sourceFile)
+    ? fs.readFileSync(state.sourceFile, "utf-8")
+    : "(PRD file not found)";
+
+  // Gather git context
+  const gitDiff = getGitDiff(branchName, worktreePath);
+  const gitLog = getGitLog(branchName, worktreePath);
+  const storyStatus = formatStoryStatus(state);
+
+  // Build prompt from template
+  const templatePath = resolveTemplatePath("pr-description-instructions.md");
+  const template = fs.readFileSync(templatePath, "utf-8");
+
+  const prompt = template
+    .replace("{{prd}}", prdContent)
+    .replace("{{git_diff}}", gitDiff)
+    .replace("{{git_log}}", gitLog)
+    .replace("{{story_status}}", storyStatus);
+
+  // Spawn Claude with --print flag to get direct output.
+  // Pipe the prompt via stdin to avoid OS argument length limits on large diffs.
+  const result = spawnSync("claude", ["--print"], {
+    input: prompt,
+    cwd: worktreePath,
+    stdio: ["pipe", "pipe", "pipe"],
+    maxBuffer: 10 * 1024 * 1024,
+  });
+
+  if (result.error) {
+    throw new Error(`Failed to spawn Claude: ${result.error.message}`);
+  }
+
+  if (result.status !== 0) {
+    const stderr = result.stderr.toString().trim();
+    throw new Error(
+      `Claude exited with code ${result.status}${stderr ? `: ${stderr}` : ""}`,
+    );
+  }
+
+  const output = result.stdout.toString().trim();
+
+  // Parse JSON response — handle possible markdown code fences
+  let jsonStr = output;
+  const fenceMatch = /```(?:json)?\s*\n?([\s\S]*?)\n?```/.exec(output);
+  if (fenceMatch) {
+    jsonStr = fenceMatch[1].trim();
+  }
+
+  let parsed: { title?: string; body?: string };
+  try {
+    parsed = JSON.parse(jsonStr) as { title?: string; body?: string };
+  } catch {
+    throw new Error(
+      `Failed to parse Claude response as JSON. Raw output:\n${output}`,
+    );
+  }
+
+  if (typeof parsed.title !== "string" || typeof parsed.body !== "string") {
+    throw new Error(
+      `Claude response missing "title" or "body" fields. Parsed:\n${JSON.stringify(parsed, null, 2)}`,
+    );
+  }
+
+  return { title: parsed.title, body: parsed.body };
+}
+
 export function prCommand(workspaceName: string, options: PrOptions): void {
   const resolved = resolveWorkspace(workspaceName);
   const statePath = `${resolved.workspaceDir}/state.json`;
@@ -107,4 +236,8 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
   // US-003: Detect existing PR for branch (result used in US-005)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const existingPr = findExistingPr(state.branchName, state.worktreePath);
+
+  // US-004: Generate PR title and description via Claude
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const prDescription = generatePrDescription(state);
 }
