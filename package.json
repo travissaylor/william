@@ -7,7 +7,7 @@
     "william": "src/cli.ts"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && cp -r templates dist/templates",
     "clean": "rm -rf dist",
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
