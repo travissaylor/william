@@ -284,6 +284,7 @@ export function createRevisionWorkspace(
     targetDir: parentState.targetDir,
     branchName: parentState.branchName,
     sourceFile: path.join(revisionDir, "prd.md"),
+    worktreePath: parentState.worktreePath,
   });
 
   // Add revision-specific fields
