@@ -13,7 +13,7 @@ vi.mock("./config.js", () => ({
 
 import { input } from "@inquirer/prompts";
 import { loadProjectConfig } from "./config.js";
-import { runNewWizard } from "./wizard.js";
+import { runNewWizard, buildPrdWizardResult } from "./wizard.js";
 
 const mockInput = vi.mocked(input);
 const mockLoadConfig = vi.mocked(loadProjectConfig);
@@ -233,5 +233,117 @@ describe("runNewWizard", () => {
 
     const branchCall = mockInput.mock.calls[4][0];
     expect(branchCall.default).toBe("my-workspace");
+  });
+});
+
+describe("buildPrdWizardResult", () => {
+  let tmpDir: string;
+  let originalCwd: string;
+
+  beforeEach(() => {
+    tmpDir = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "william-prd-flag-test-")),
+    );
+    fs.mkdirSync(path.join(tmpDir, ".git"));
+    fs.writeFileSync(path.join(tmpDir, "my-feature.md"), "# PRD");
+    originalCwd = process.cwd();
+    process.chdir(tmpDir);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it("derives workspace name from PRD filename without .md", () => {
+    mockLoadConfig.mockReturnValue(null);
+    const result = buildPrdWizardResult("my-feature.md");
+
+    expect(result.workspaceName).toBe("my-feature");
+    expect(result.prdFile).toBe(path.resolve("my-feature.md"));
+    expect(result.targetDir).toBe(tmpDir);
+  });
+
+  it("uses cwd basename as project name when no config", () => {
+    mockLoadConfig.mockReturnValue(null);
+    const result = buildPrdWizardResult("my-feature.md");
+
+    expect(result.projectName).toBe(path.basename(tmpDir));
+  });
+
+  it("uses config.projectName when available", () => {
+    mockLoadConfig.mockReturnValue({ projectName: "configured-app" });
+    const result = buildPrdWizardResult("my-feature.md");
+
+    expect(result.projectName).toBe("configured-app");
+  });
+
+  it("uses workspace name as branch when no branchPrefix", () => {
+    mockLoadConfig.mockReturnValue(null);
+    const result = buildPrdWizardResult("my-feature.md");
+
+    expect(result.branchName).toBe("my-feature");
+  });
+
+  it("uses branchPrefix + workspace name as branch when config has branchPrefix", () => {
+    mockLoadConfig.mockReturnValue({ branchPrefix: "feature/" });
+    const result = buildPrdWizardResult("my-feature.md");
+
+    expect(result.branchName).toBe("feature/my-feature");
+  });
+
+  it("resolves relative PRD path to absolute", () => {
+    mockLoadConfig.mockReturnValue(null);
+    const result = buildPrdWizardResult("my-feature.md");
+
+    expect(path.isAbsolute(result.prdFile)).toBe(true);
+    expect(result.prdFile).toBe(path.join(tmpDir, "my-feature.md"));
+  });
+
+  it("throws if PRD file does not exist", () => {
+    mockLoadConfig.mockReturnValue(null);
+
+    expect(() => buildPrdWizardResult("nonexistent.md")).toThrow(
+      "PRD file not found",
+    );
+  });
+
+  it("throws if PRD file does not end with .md", () => {
+    fs.writeFileSync(path.join(tmpDir, "feature.txt"), "# PRD");
+    mockLoadConfig.mockReturnValue(null);
+
+    expect(() => buildPrdWizardResult("feature.txt")).toThrow(
+      "PRD file must be a .md file",
+    );
+  });
+
+  it("throws if cwd is not a git repository", () => {
+    fs.rmSync(path.join(tmpDir, ".git"), { recursive: true });
+    mockLoadConfig.mockReturnValue(null);
+
+    expect(() => buildPrdWizardResult("my-feature.md")).toThrow(
+      "Not a git repository",
+    );
+  });
+
+  it("does not call any interactive prompts", () => {
+    mockLoadConfig.mockReturnValue(null);
+    buildPrdWizardResult("my-feature.md");
+
+    expect(mockInput).not.toHaveBeenCalled();
+  });
+
+  it("works with both projectName and branchPrefix from config", () => {
+    mockLoadConfig.mockReturnValue({
+      projectName: "my-app",
+      branchPrefix: "feat/",
+    });
+    const result = buildPrdWizardResult("my-feature.md");
+
+    expect(result.projectName).toBe("my-app");
+    expect(result.branchName).toBe("feat/my-feature");
+    expect(result.workspaceName).toBe("my-feature");
+    expect(result.targetDir).toBe(tmpDir);
   });
 });

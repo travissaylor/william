@@ -18,7 +18,7 @@ import {
 } from "./workspace.js";
 import { archiveWorkspace } from "./archive.js";
 import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
-import { runNewWizard } from "./wizard.js";
+import { runNewWizard, buildPrdWizardResult } from "./wizard.js";
 import { runInit } from "./init.js";
 import {
   collectRevisionProblems,
@@ -103,9 +103,12 @@ program
 program
   .command("new")
   .description("Interactive wizard to create a new workspace")
-  .action(async () => {
+  .option("-p, --prd <path>", "PRD file path — skip wizard and use defaults")
+  .action(async (options: { prd?: string }) => {
     try {
-      const result = await runNewWizard();
+      const result = options.prd
+        ? buildPrdWizardResult(options.prd)
+        : await runNewWizard();
 
       const worktreePath = createWorkspace(result.workspaceName, {
         targetDir: result.targetDir,

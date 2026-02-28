@@ -11,6 +11,40 @@ export interface WizardResult {
   branchName: string;
 }
 
+/**
+ * Build a WizardResult directly from a PRD path, bypassing all interactive prompts.
+ * Uses project config for projectName and branchPrefix when available.
+ */
+export function buildPrdWizardResult(prdPath: string): WizardResult {
+  const cwd = process.cwd();
+  const resolved = path.resolve(prdPath);
+
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`PRD file not found: ${resolved}`);
+  }
+  if (!resolved.endsWith(".md")) {
+    throw new Error("PRD file must be a .md file");
+  }
+  if (!fs.existsSync(path.join(cwd, ".git"))) {
+    throw new Error(`Not a git repository (no .git found): ${cwd}`);
+  }
+
+  const config = loadProjectConfig(cwd);
+  const workspaceName = path.basename(resolved, ".md");
+  const projectName = config?.projectName ?? path.basename(cwd);
+  const branchName = config?.branchPrefix
+    ? `${config.branchPrefix}${workspaceName}`
+    : workspaceName;
+
+  return {
+    prdFile: resolved,
+    workspaceName,
+    targetDir: cwd,
+    projectName,
+    branchName,
+  };
+}
+
 export async function runNewWizard(): Promise<WizardResult> {
   const config = loadProjectConfig(process.cwd());
 
