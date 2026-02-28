@@ -393,7 +393,9 @@ export async function runWorkspace(
     const logPath = path.join(logsDir, `${timestamp}-${currentStory}.log`);
     const logStream = fs.createWriteStream(logPath);
 
-    const childProcess = adapter.spawn(prompt, { cwd: state.targetDir });
+    const childProcess = adapter.spawn(prompt, {
+      cwd: state.worktreePath ?? state.targetDir,
+    });
 
     emitter.thinkingStart();
     const { session } = await consumeStreamOutput({
