@@ -26,6 +26,7 @@ import {
 import { migrateWorkspaces } from "./migrate.js";
 import { resolveTemplatePath } from "./paths.js";
 import { loadState } from "./prd/tracker.js";
+import { prCommand } from "./pr.js";
 import { runWorkspace } from "./runner.js";
 import { TuiEmitter } from "./ui/events.js";
 import { App } from "./ui/App.js";
@@ -561,5 +562,26 @@ program
       process.exit(1);
     }
   });
+
+program
+  .command("pr <workspace-name>")
+  .description("Push the workspace branch and create (or update) a GitHub PR")
+  .option("--draft", "Create the PR as a draft")
+  .option("--dry-run", "Preview the generated PR without pushing or creating")
+  .action(
+    (workspaceName: string, options: { draft?: boolean; dryRun?: boolean }) => {
+      try {
+        prCommand(workspaceName, {
+          draft: options.draft,
+          dryRun: options.dryRun,
+        });
+      } catch (err) {
+        console.error(
+          `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        process.exit(1);
+      }
+    },
+  );
 
 program.parse();
