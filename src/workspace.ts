@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { execSync, spawnSync } from "child_process";
 import { createElement } from "react";
 import { render } from "ink";
 import { parsePrd } from "./prd/parser.js";
@@ -145,6 +145,44 @@ export function resolveWorkspace(nameOrPath: string): ResolvedWorkspace {
   return matches[0];
 }
 
+/**
+ * Detect the package manager from lockfiles in a directory and run install.
+ * If no lockfile is found, silently skips. If install fails, cleans up
+ * the workspace directory and throws.
+ */
+function installWorktreeDeps(worktreePath: string, workspaceDir: string): void {
+  const lockfileMap: [string, string, string[]][] = [
+    ["pnpm-lock.yaml", "pnpm", ["install"]],
+    ["package-lock.json", "npm", ["install"]],
+    ["yarn.lock", "yarn", ["install"]],
+    ["bun.lockb", "bun", ["install"]],
+    ["bun.lock", "bun", ["install"]],
+  ];
+
+  let detected: { cmd: string; args: string[] } | null = null;
+  for (const [lockfile, cmd, args] of lockfileMap) {
+    if (fs.existsSync(path.join(worktreePath, lockfile))) {
+      detected = { cmd, args };
+      break;
+    }
+  }
+
+  if (!detected) return;
+
+  const result = spawnSync(detected.cmd, detected.args, {
+    cwd: worktreePath,
+    stdio: "inherit",
+  });
+
+  if (result.status !== 0) {
+    fs.rmSync(workspaceDir, { recursive: true, force: true });
+    const msg = result.error
+      ? result.error.message
+      : `${detected.cmd} ${detected.args.join(" ")} exited with code ${result.status}`;
+    throw new Error(`Failed to install dependencies in worktree: ${msg}`);
+  }
+}
+
 export interface CreateWorkspaceOpts {
   targetDir: string;
   prdFile: string;
@@ -214,6 +252,9 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
       );
     }
   }
+
+  // Install dependencies in the worktree if a known lockfile is present
+  installWorktreeDeps(worktreePath, workspaceDir);
 
   const state = initStateFromPrd(parsedPrd, {
     workspace: name,
