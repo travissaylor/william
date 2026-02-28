@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 import { WILLIAM_ROOT } from "./runner.js";
 import { loadState } from "./prd/tracker.js";
 import { resolveWorkspace } from "./workspace.js";
@@ -70,6 +71,26 @@ export function archiveWorkspace(name: string): string {
       state.sourceFile,
       path.join(archivePath, path.basename(state.sourceFile)),
     );
+  }
+
+  // Clean up git worktree if present
+  if (state.worktreePath) {
+    if (fs.existsSync(state.worktreePath)) {
+      try {
+        execSync(`git worktree remove ${JSON.stringify(state.worktreePath)}`, {
+          cwd: state.targetDir,
+          stdio: "pipe",
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Cannot archive: worktree has uncommitted changes. Commit or discard changes first.\n${msg}`,
+        );
+      }
+    } else {
+      // Worktree directory already gone — prune stale references
+      execSync("git worktree prune", { cwd: state.targetDir, stdio: "pipe" });
+    }
   }
 
   // Remove workspace directory
