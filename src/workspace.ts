@@ -190,7 +190,10 @@ export interface CreateWorkspaceOpts {
   project?: string;
 }
 
-export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
+export function createWorkspace(
+  name: string,
+  opts: CreateWorkspaceOpts,
+): string {
   const projectName =
     opts.project ?? path.basename(path.resolve(opts.targetDir));
   const workspaceDir = path.join(WILLIAM_ROOT, "workspaces", projectName, name);
@@ -278,6 +281,8 @@ export function createWorkspace(name: string, opts: CreateWorkspaceOpts): void {
 
   // Copy the PRD into the workspace directory
   fs.copyFileSync(prdPath, path.join(workspaceDir, "prd.md"));
+
+  return worktreePath;
 }
 
 export interface CreateRevisionWorkspaceOpts {

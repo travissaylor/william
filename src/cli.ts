@@ -106,7 +106,7 @@ program
     try {
       const result = await runNewWizard();
 
-      createWorkspace(result.workspaceName, {
+      const worktreePath = createWorkspace(result.workspaceName, {
         targetDir: result.targetDir,
         prdFile: result.prdFile,
         branchName: result.branchName,
@@ -119,6 +119,7 @@ program
       console.log(`  Target:    ${result.targetDir}`);
       console.log(`  Branch:    ${result.branchName}`);
       console.log(`  PRD:       ${result.prdFile}`);
+      console.log(`  Worktree:  ${worktreePath}`);
       console.log(`\nRun: william start ${result.workspaceName}`);
     } catch (err) {
       if (err instanceof Error && err.name === "ExitPromptError") {
