@@ -23,6 +23,7 @@ Autonomous orchestrator that turns markdown PRDs into implemented code by spawni
 git clone <repo-url> ~/projects/william
 cd ~/projects/william
 pnpm install
+pnpm build
 pnpm link --global
 ```
 
@@ -186,6 +187,7 @@ william/
 ## Development
 
 ```sh
+pnpm build         # bundle CLI to dist/ (tsup + copy templates)
 pnpm test          # run tests (vitest)
 pnpm typecheck     # type check (tsc --noEmit)
 ```
