@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { input } from "@inquirer/prompts";
+import { loadProjectConfig } from "./config.js";
 
 export interface WizardResult {
   prdFile: string;
@@ -11,6 +12,8 @@ export interface WizardResult {
 }
 
 export async function runNewWizard(): Promise<WizardResult> {
+  const config = loadProjectConfig(process.cwd());
+
   const prdFile = await input({
     message: "PRD file path:",
     validate: (value) => {
@@ -54,29 +57,43 @@ export async function runNewWizard(): Promise<WizardResult> {
   });
 
   const resolvedTarget = path.resolve(targetDir);
-  const defaultProject = path.basename(resolvedTarget);
+  const defaultProject = config?.projectName ?? path.basename(resolvedTarget);
 
-  const projectName = await input({
-    message: "Project name:",
-    default: defaultProject,
-    validate: (value) => {
-      if (!value.trim()) {
-        return "Project name cannot be empty";
-      }
-      return true;
-    },
-  });
+  let projectName: string;
+  if (config?.skipDefaults && config.projectName) {
+    projectName = config.projectName;
+  } else {
+    projectName = await input({
+      message: "Project name:",
+      default: defaultProject,
+      validate: (value) => {
+        if (!value.trim()) {
+          return "Project name cannot be empty";
+        }
+        return true;
+      },
+    });
+  }
 
-  const branchName = await input({
-    message: "Branch name:",
-    default: workspaceName,
-    validate: (value) => {
-      if (!value.trim()) {
-        return "Branch name cannot be empty";
-      }
-      return true;
-    },
-  });
+  const defaultBranch = config?.branchPrefix
+    ? `${config.branchPrefix}${workspaceName}`
+    : workspaceName;
+
+  let branchName: string;
+  if (config?.skipDefaults && config.branchPrefix) {
+    branchName = defaultBranch;
+  } else {
+    branchName = await input({
+      message: "Branch name:",
+      default: defaultBranch,
+      validate: (value) => {
+        if (!value.trim()) {
+          return "Branch name cannot be empty";
+        }
+        return true;
+      },
+    });
+  }
 
   return {
     prdFile: path.resolve(prdFile),
