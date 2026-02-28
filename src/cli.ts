@@ -19,6 +19,7 @@ import {
 import { archiveWorkspace } from "./archive.js";
 import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
 import { runNewWizard } from "./wizard.js";
+import { runInit } from "./init.js";
 import {
   collectRevisionProblems,
   generateRevisionPlan,
@@ -124,6 +125,24 @@ program
     } catch (err) {
       if (err instanceof Error && err.name === "ExitPromptError") {
         console.log("\nWizard cancelled.");
+        return;
+      }
+      console.error(
+        `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  });
+
+program
+  .command("init")
+  .description("Initialize .william/config.json in the current project")
+  .action(async () => {
+    try {
+      await runInit();
+    } catch (err) {
+      if (err instanceof Error && err.name === "ExitPromptError") {
+        console.log("\nInit cancelled.");
         return;
       }
       console.error(
