@@ -24,6 +24,7 @@ import {
   generateRevisionPlan,
 } from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
+import { resolveTemplatePath } from "./paths.js";
 import { loadState } from "./prd/tracker.js";
 import { runWorkspace } from "./runner.js";
 import { TuiEmitter } from "./ui/events.js";
@@ -35,12 +36,7 @@ export function buildPrdPrompt(options: {
   description?: string;
   output?: string;
 }): string {
-  const templatePath = path.join(
-    __dirname,
-    "..",
-    "templates",
-    "prd-instructions.md",
-  );
+  const templatePath = resolveTemplatePath("prd-instructions.md");
   const template = fs.readFileSync(templatePath, "utf-8");
 
   let prompt = template;
@@ -69,12 +65,7 @@ export function buildPrdPrompt(options: {
 }
 
 export function buildProblemPrompt(options: { description?: string }): string {
-  const templatePath = path.join(
-    __dirname,
-    "..",
-    "templates",
-    "problem-statement-instructions.md",
-  );
+  const templatePath = resolveTemplatePath("problem-statement-instructions.md");
   const template = fs.readFileSync(templatePath, "utf-8");
 
   let prompt = template;

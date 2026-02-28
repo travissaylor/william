@@ -22,6 +22,7 @@ import {
 import { sendNotification } from "./notifier.js";
 import type { StreamSession } from "./stream/types.js";
 import type { TuiEmitter } from "./ui/events.js";
+import { resolveTemplatePath } from "./paths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const WILLIAM_ROOT = path.resolve(__dirname, "..");
@@ -252,11 +253,7 @@ export async function runWorkspace(
   const pausedPath = path.join(workspaceDir, ".paused");
   const stoppedPath = path.join(workspaceDir, ".stopped");
   const logsDir = path.join(workspaceDir, "logs");
-  const templatePath = path.join(
-    WILLIAM_ROOT,
-    "templates",
-    "agent-instructions.md",
-  );
+  const templatePath = resolveTemplatePath("agent-instructions.md");
 
   fs.mkdirSync(logsDir, { recursive: true });
 
