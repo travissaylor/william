@@ -219,6 +219,7 @@ export function createOrUpdatePr(
   existingPr: ExistingPr | null,
   description: PrDescription,
   worktreePath: string,
+  options?: { draft?: boolean },
 ): string {
   if (existingPr) {
     // Update existing PR
@@ -236,14 +237,36 @@ export function createOrUpdatePr(
         stderr.trim() || (err instanceof Error ? err.message : String(err));
       throw new Error(`Failed to update PR #${existingPr.number}: ${message}`);
     }
+
+    // Convert existing PR to draft if --draft was passed
+    if (options?.draft) {
+      try {
+        execSync(`gh pr ready ${existingPr.number} --undo`, {
+          cwd: worktreePath,
+          stdio: "pipe",
+        });
+      } catch (err) {
+        const stderr =
+          err instanceof Error && "stderr" in err
+            ? String((err as NodeJS.ErrnoException & { stderr: Buffer }).stderr)
+            : "";
+        const message =
+          stderr.trim() || (err instanceof Error ? err.message : String(err));
+        throw new Error(
+          `Failed to convert PR #${existingPr.number} to draft: ${message}`,
+        );
+      }
+    }
+
     return existingPr.url;
   }
 
   // Create new PR
+  const draftFlag = options?.draft ? " --draft" : "";
   let output: string;
   try {
     output = execSync(
-      `gh pr create --base main --title ${shellEscape(description.title)} --body ${shellEscape(description.body)}`,
+      `gh pr create --base main --title ${shellEscape(description.title)} --body ${shellEscape(description.body)}${draftFlag}`,
       { cwd: worktreePath, stdio: "pipe" },
     ).toString();
   } catch (err) {
@@ -315,6 +338,13 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
     return;
   }
 
-  const prUrl = createOrUpdatePr(existingPr, prDescription, state.worktreePath);
+  const prUrl = createOrUpdatePr(
+    existingPr,
+    prDescription,
+    state.worktreePath,
+    {
+      draft: options.draft,
+    },
+  );
   console.log(prUrl);
 }
