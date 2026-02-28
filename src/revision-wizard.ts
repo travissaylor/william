@@ -1,12 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
-import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 import { input, confirm } from "@inquirer/prompts";
 import { spawnCapture } from "./adapters/claude.js";
 import { replacePlaceholders } from "./template.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { resolveTemplatePath } from "./paths.js";
 
 export async function collectRevisionProblems(): Promise<string[]> {
   const problems: string[] = [];
@@ -93,12 +91,7 @@ function gatherContext(opts: GeneratePlanOpts) {
  * Builds the initial revision plan prompt from the template and workspace context.
  */
 function buildInitialPrompt(opts: GeneratePlanOpts): string {
-  const templatePath = path.join(
-    __dirname,
-    "..",
-    "templates",
-    "revision-plan-instructions.md",
-  );
+  const templatePath = resolveTemplatePath("revision-plan-instructions.md");
   const template = fs.readFileSync(templatePath, "utf-8");
   const ctx = gatherContext(opts);
 
