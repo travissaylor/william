@@ -4,13 +4,9 @@ You are an autonomous coding agent. Your job is to implement a single user story
 
 ---
 
-## Branch Setup
+## Branch Context
 
-Check out or create the branch `{{branch_name}}` if you are not already on it:
-
-```sh
-git checkout {{branch_name}} 2>/dev/null || git checkout -b {{branch_name}}
-```
+You are working inside a git worktree that is already on the `{{branch_name}}` branch. Do **not** switch branches — commit your work directly to `{{branch_name}}`.
 
 ---
 
