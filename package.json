@@ -4,7 +4,7 @@
   "description": "Autonomous orchestrator for managing development tasks",
   "type": "module",
   "bin": {
-    "william": "src/cli.ts"
+    "william": "dist/cli.js"
   },
   "scripts": {
     "build": "tsup && cp -r templates dist/templates",
