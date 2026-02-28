@@ -319,18 +319,10 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
     );
   }
 
-  // US-002: Push workspace branch to remote (skip if dry run)
-  if (!options.dryRun) {
-    pushBranch(state.branchName, state.worktreePath);
-  }
-
-  // US-003: Detect existing PR for branch (result used in US-005)
-  const existingPr = findExistingPr(state.branchName, state.worktreePath);
-
   // US-004: Generate PR title and description via Claude
   const prDescription = generatePrDescription(state);
 
-  // US-005: Create or update the GitHub PR (skip if dry run)
+  // US-008: Dry run — print the generated title and body without pushing or creating a PR
   if (options.dryRun) {
     console.log("Dry run — no PR created\n");
     console.log(`Title: ${prDescription.title}\n`);
@@ -338,6 +330,13 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
     return;
   }
 
+  // US-002: Push workspace branch to remote
+  pushBranch(state.branchName, state.worktreePath);
+
+  // US-003: Detect existing PR for branch (result used in US-005)
+  const existingPr = findExistingPr(state.branchName, state.worktreePath);
+
+  // US-005: Create or update the GitHub PR
   const prUrl = createOrUpdatePr(
     existingPr,
     prDescription,
