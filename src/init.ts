@@ -2,6 +2,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { input, confirm, editor } from "@inquirer/prompts";
 import { loadProjectConfig, type ProjectConfig } from "./config.js";
+import {
+  detectShell,
+  areCompletionsInstalled,
+  installCompletions,
+} from "./completions.js";
 
 export async function runInit(): Promise<void> {
   const cwd = process.cwd();
@@ -86,6 +91,18 @@ export async function runInit(): Promise<void> {
       }
     } else {
       fs.writeFileSync(gitignorePath, ".william/\n");
+    }
+  }
+
+  // Offer to install shell completions
+  const detectedShell = detectShell();
+  if (detectedShell && !areCompletionsInstalled(detectedShell)) {
+    const installCompletionsAnswer = await confirm({
+      message: `Install shell completions? (auto-detected: ${detectedShell})`,
+      default: true,
+    });
+    if (installCompletionsAnswer) {
+      installCompletions(detectedShell);
     }
   }
 

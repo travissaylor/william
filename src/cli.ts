@@ -28,6 +28,13 @@ import {
 import { migrateWorkspaces } from "./migrate.js";
 import { resolveTemplatePath } from "./paths.js";
 import { buildPrdPrompt } from "./prd-prompt.js";
+import {
+  detectShell,
+  generateScript,
+  installCompletions,
+  getCompletions,
+  type ShellType,
+} from "./completions.js";
 import { loadState } from "./prd/tracker.js";
 import { prCommand } from "./pr.js";
 import { runWorkspace } from "./runner.js";
@@ -596,5 +603,62 @@ program
       }
     },
   );
+
+program
+  .command("completions")
+  .description("Output shell completion script for bash, zsh, or fish")
+  .option(
+    "--shell <shell>",
+    "Shell type (bash, zsh, fish). Auto-detected from $SHELL if not provided.",
+  )
+  .option("--install", "Install completions to shell profile automatically")
+  .action((options: { shell?: string; install?: boolean }) => {
+    const validShells = ["bash", "zsh", "fish"];
+    let shell: ShellType;
+
+    if (options.shell) {
+      if (!validShells.includes(options.shell)) {
+        console.error(
+          `[william] Error: Unsupported shell "${options.shell}". Supported shells: ${validShells.join(", ")}`,
+        );
+        process.exit(1);
+      }
+      shell = options.shell as ShellType;
+    } else {
+      const detected = detectShell();
+      if (!detected) {
+        console.error(
+          `[william] Error: Could not detect shell from $SHELL environment variable.\nUsage: william completions --shell <bash|zsh|fish>`,
+        );
+        process.exit(1);
+      }
+      shell = detected;
+    }
+
+    if (options.install) {
+      installCompletions(shell);
+    } else {
+      process.stdout.write(generateScript(shell));
+    }
+  });
+
+program.addCommand(
+  new Command("_completions")
+    .description("Return completions for shell scripts (internal)")
+    .option("--command <cmd>", "Command to complete for")
+    .option("--position <pos>", "Argument position")
+    .argument("[words...]", "Command line words")
+    .action(
+      (words: string[], options: { command?: string; position?: string }) => {
+        const position = parseInt(options.position ?? "0", 10);
+        const results = getCompletions(options.command, position, words);
+        if (results.length > 0) {
+          process.stdout.write(results.join("\n") + "\n");
+        }
+        process.exit(0);
+      },
+    ),
+  { hidden: true },
+);
 
 program.parse();
