@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import { execSync } from "child_process";
+import ora from "ora";
 import { resolveWorkspace } from "./workspace.js";
 import { loadState } from "./prd/tracker.js";
 import { resolveTemplatePath } from "./paths.js";
@@ -141,6 +142,7 @@ function formatStoryStatus(state: WorkspaceState): string {
 
 export async function generatePrDescription(
   state: WorkspaceState,
+  spinner?: ReturnType<typeof ora>,
 ): Promise<PrDescription> {
   if (!state.worktreePath) {
     throw new Error("Workspace has no worktree path");
@@ -169,8 +171,14 @@ export async function generatePrDescription(
     .replace("{{story_status}}", storyStatus);
 
   // Stream Claude's output with markdown rendering via spawnCapture
+  let spinnerStopped = false;
   let lineBuffer = "";
   const onText = (text: string) => {
+    // Stop the spinner once the first token arrives
+    if (spinner && !spinnerStopped) {
+      spinner.stop();
+      spinnerStopped = true;
+    }
     lineBuffer += text;
     const lines = lineBuffer.split("\n");
     // Keep the last (potentially incomplete) line in the buffer
@@ -184,6 +192,9 @@ export async function generatePrDescription(
     cwd: worktreePath,
     onText,
   });
+
+  // Stop spinner if no text was ever received
+  spinner?.stop();
 
   // Flush any remaining buffered text
   if (lineBuffer) {
@@ -320,35 +331,44 @@ export async function prCommand(
     );
   }
 
-  // US-006: Warn on incomplete workspace
+  // Warn on incomplete stories with yellow coloring
   const incompleteStories = Object.entries(state.stories)
     .filter(([, story]) => story.passes !== true)
     .map(([id]) => id);
 
   if (incompleteStories.length > 0) {
     console.warn(
-      `Warning: ${incompleteStories.length} incomplete ${incompleteStories.length === 1 ? "story" : "stories"}: ${incompleteStories.join(", ")}`,
+      `\x1b[33m⚠ Warning: ${incompleteStories.length} incomplete ${incompleteStories.length === 1 ? "story" : "stories"}: ${incompleteStories.join(", ")}\x1b[0m`,
     );
   }
 
-  // US-004: Generate PR title and description via Claude
-  const prDescription = await generatePrDescription(state);
+  // Phase 1: Generate PR description
+  const descSpinner = ora("Generating PR description...").start();
+  const prDescription = await generatePrDescription(state, descSpinner);
+  descSpinner.succeed("PR description generated");
 
-  // US-008: Dry run — print the generated title and body without pushing or creating a PR
+  // Dry run — print the generated title and body without pushing or creating a PR
   if (options.dryRun) {
-    console.log("Dry run — no PR created\n");
+    console.log("\nDry run — no PR created\n");
     console.log(`Title: ${prDescription.title}\n`);
     console.log(prDescription.body);
     return;
   }
 
-  // US-002: Push workspace branch to remote
+  // Phase 2: Push branch
+  const pushSpinner = ora("Pushing branch...").start();
   pushBranch(state.branchName, state.worktreePath);
+  pushSpinner.succeed("Branch pushed");
 
-  // US-003: Detect existing PR for branch (result used in US-005)
+  // Phase 3: Check for existing PR
   const existingPr = findExistingPr(state.branchName, state.worktreePath);
 
-  // US-005: Create or update the GitHub PR
+  // Phase 4: Create or update the GitHub PR
+  const prSpinner = ora(
+    existingPr
+      ? `Updating pull request #${existingPr.number}...`
+      : "Creating pull request...",
+  ).start();
   const prUrl = createOrUpdatePr(
     existingPr,
     prDescription,
@@ -357,5 +377,12 @@ export async function prCommand(
       draft: options.draft,
     },
   );
-  console.log(prUrl);
+  prSpinner.succeed(
+    existingPr
+      ? `Pull request #${existingPr.number} updated`
+      : "Pull request created",
+  );
+
+  // Print final PR URL with green success indicator
+  console.log(`\n\x1b[32m✔\x1b[0m ${prUrl}`);
 }
