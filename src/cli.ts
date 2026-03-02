@@ -32,6 +32,7 @@ import {
   detectShell,
   generateScript,
   installCompletions,
+  getCompletions,
   type ShellType,
 } from "./completions.js";
 import { loadState } from "./prd/tracker.js";
@@ -640,5 +641,24 @@ program
       process.stdout.write(generateScript(shell));
     }
   });
+
+program.addCommand(
+  new Command("_completions")
+    .description("Return completions for shell scripts (internal)")
+    .option("--command <cmd>", "Command to complete for")
+    .option("--position <pos>", "Argument position")
+    .argument("[words...]", "Command line words")
+    .action(
+      (words: string[], options: { command?: string; position?: string }) => {
+        const position = parseInt(options.position ?? "0", 10);
+        const results = getCompletions(options.command, position, words);
+        if (results.length > 0) {
+          process.stdout.write(results.join("\n") + "\n");
+        }
+        process.exit(0);
+      },
+    ),
+  { hidden: true },
+);
 
 program.parse();

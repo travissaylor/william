@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { fileURLToPath } from "url";
 
 export type ShellType = "bash" | "zsh" | "fish";
 
@@ -273,6 +274,137 @@ function isAlreadyInstalled(profilePath: string, sourceLine: string): boolean {
   if (!fs.existsSync(profilePath)) return false;
   const content = fs.readFileSync(profilePath, "utf-8");
   return content.includes(sourceLine);
+}
+
+// Compute WILLIAM_ROOT locally to avoid importing from runner.ts (heavy deps)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const COMPLETIONS_ROOT = path.resolve(__dirname, "..");
+
+interface WorkspaceInfo {
+  name: string;
+  isStopped: boolean;
+  isPaused: boolean;
+  allCompleted: boolean;
+}
+
+function listWorkspacesForCompletion(): WorkspaceInfo[] {
+  const workspacesDir = path.join(COMPLETIONS_ROOT, "workspaces");
+  if (!fs.existsSync(workspacesDir)) return [];
+
+  const result: WorkspaceInfo[] = [];
+  let projects: string[];
+  try {
+    projects = fs
+      .readdirSync(workspacesDir)
+      .filter((entry) =>
+        fs.statSync(path.join(workspacesDir, entry)).isDirectory(),
+      );
+  } catch {
+    return [];
+  }
+
+  for (const project of projects) {
+    const projectDir = path.join(workspacesDir, project);
+    let workspaces: string[];
+    try {
+      workspaces = fs.readdirSync(projectDir).filter((entry) => {
+        const full = path.join(projectDir, entry);
+        return (
+          fs.statSync(full).isDirectory() &&
+          fs.existsSync(path.join(full, "state.json"))
+        );
+      });
+    } catch {
+      continue;
+    }
+
+    for (const ws of workspaces) {
+      const wsDir = path.join(projectDir, ws);
+      const isStopped = fs.existsSync(path.join(wsDir, ".stopped"));
+      const isPaused = fs.existsSync(path.join(wsDir, ".paused"));
+
+      let allCompleted = false;
+      try {
+        const stateRaw = fs.readFileSync(
+          path.join(wsDir, "state.json"),
+          "utf-8",
+        );
+        const state = JSON.parse(stateRaw) as {
+          stories?: Record<string, { passes: boolean | "skipped" }>;
+        };
+        const stories = Object.values(state.stories ?? {});
+        allCompleted =
+          stories.length > 0 &&
+          stories.every((s) => s.passes === true || s.passes === "skipped");
+      } catch {
+        // Can't read state — assume not completed
+      }
+
+      result.push({
+        name: `${project}/${ws}`,
+        isStopped,
+        isPaused,
+        allCompleted,
+      });
+    }
+  }
+
+  return result;
+}
+
+function filterWorkspaces(
+  workspaces: WorkspaceInfo[],
+  filterType: string,
+): string[] {
+  return workspaces
+    .filter((ws) => {
+      switch (filterType) {
+        case "not-running":
+          return ws.isStopped || ws.isPaused;
+        case "running":
+          return !ws.isStopped && !ws.isPaused;
+        case "stopped-or-completed":
+          return ws.isStopped || ws.allCompleted;
+        case "all":
+          return true;
+        case "all-completed":
+          return ws.allCompleted;
+        default:
+          return false;
+      }
+    })
+    .map((ws) => ws.name);
+}
+
+/**
+ * Return completions for the _completions hidden subcommand.
+ * Called by shell completion scripts at runtime.
+ */
+export function getCompletions(
+  command: string | undefined,
+  position: number,
+  words: string[],
+): string[] {
+  // No command specified — return all command names
+  if (!command) {
+    return [...WILLIAM_COMMANDS];
+  }
+
+  // Check if current word starts with - (flag context)
+  const currentWord = position < words.length ? words[position] : "";
+  if (currentWord.startsWith("-")) {
+    const cmdFlags = COMMAND_FLAGS[command] ?? [];
+    return ["--help", ...cmdFlags.map((f) => f.flag)];
+  }
+
+  // Return workspace names if the command accepts them
+  const filterType = WORKSPACE_COMMANDS[command];
+  if (filterType) {
+    const workspaces = listWorkspacesForCompletion();
+    return filterWorkspaces(workspaces, filterType);
+  }
+
+  return [];
 }
 
 export function installCompletions(shell: ShellType): void {
