@@ -28,6 +28,7 @@ import {
 import { migrateWorkspaces } from "./migrate.js";
 import { resolveTemplatePath } from "./paths.js";
 import { buildPrdPrompt } from "./prd-prompt.js";
+import { detectShell, generateScript, type ShellType } from "./completions.js";
 import { loadState } from "./prd/tracker.js";
 import { prCommand } from "./pr.js";
 import { runWorkspace } from "./runner.js";
@@ -596,5 +597,38 @@ program
       }
     },
   );
+
+program
+  .command("completions")
+  .description("Output shell completion script for bash, zsh, or fish")
+  .option(
+    "--shell <shell>",
+    "Shell type (bash, zsh, fish). Auto-detected from $SHELL if not provided.",
+  )
+  .action((options: { shell?: string }) => {
+    const validShells = ["bash", "zsh", "fish"];
+    let shell: ShellType;
+
+    if (options.shell) {
+      if (!validShells.includes(options.shell)) {
+        console.error(
+          `[william] Error: Unsupported shell "${options.shell}". Supported shells: ${validShells.join(", ")}`,
+        );
+        process.exit(1);
+      }
+      shell = options.shell as ShellType;
+    } else {
+      const detected = detectShell();
+      if (!detected) {
+        console.error(
+          `[william] Error: Could not detect shell from $SHELL environment variable.\nUsage: william completions --shell <bash|zsh|fish>`,
+        );
+        process.exit(1);
+      }
+      shell = detected;
+    }
+
+    process.stdout.write(generateScript(shell));
+  });
 
 program.parse();
