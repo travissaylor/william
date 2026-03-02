@@ -106,10 +106,10 @@ ${bashCaseEntries}
     return
   fi
 
-  # Complete workspace names for commands that accept them
+  # Complete dynamic values (workspace names, PRD files) for commands that accept them
   local cmd="\${words[1]}"
   case "$cmd" in
-    start|stop|archive|status|revise|pr)
+    start|stop|archive|status|revise|pr|new)
       local result
       result="$(william _completions --command "$cmd" --position "$cword" -- "\${words[@]}" 2>/dev/null)"
       if [[ -n "$result" ]]; then
@@ -160,10 +160,10 @@ ${zshCaseEntries}
     return
   fi
 
-  # Complete workspace names for commands that accept them
+  # Complete dynamic values (workspace names, PRD files) for commands that accept them
   local cmd="\${words[2]}"
   case "$cmd" in
-    start|stop|archive|status|revise|pr)
+    start|stop|archive|status|revise|pr|new)
       result="$(william _completions --command "$cmd" --position "$CURRENT" -- "\${words[@]}" 2>/dev/null)"
       if [[ -n "$result" ]]; then
         completions=("\${(@f)result}")
@@ -220,6 +220,12 @@ function __william_workspace_completions
   end
 end
 
+function __william_prev_arg_is
+  set -l tokens (commandline -opc)
+  set -l count (count $tokens)
+  test $count -ge 2; and test $tokens[-1] = $argv[1]
+end
+
 # Static command name completions
 ${cmdEntries}
 
@@ -228,6 +234,9 @@ ${fishFlagEntries}
 
 # Workspace name completions for commands that accept them
 ${fishWorkspaceEntries}
+
+# PRD file completions for 'new --prd'
+complete -c william -f -n '__william_using_command new; and __william_prev_arg_is --prd' -a '(__william_workspace_completions)'
 `;
 }
 
@@ -282,6 +291,7 @@ const COMPLETIONS_ROOT = path.resolve(__dirname, "..");
 
 interface WorkspaceInfo {
   name: string;
+  isRunning: boolean;
   isStopped: boolean;
   isPaused: boolean;
   allCompleted: boolean;
@@ -320,6 +330,7 @@ function listWorkspacesForCompletion(): WorkspaceInfo[] {
 
     for (const ws of workspaces) {
       const wsDir = path.join(projectDir, ws);
+      const isRunning = fs.existsSync(path.join(wsDir, ".running"));
       const isStopped = fs.existsSync(path.join(wsDir, ".stopped"));
       const isPaused = fs.existsSync(path.join(wsDir, ".paused"));
 
@@ -342,6 +353,7 @@ function listWorkspacesForCompletion(): WorkspaceInfo[] {
 
       result.push({
         name: `${project}/${ws}`,
+        isRunning,
         isStopped,
         isPaused,
         allCompleted,
@@ -360,9 +372,9 @@ function filterWorkspaces(
     .filter((ws) => {
       switch (filterType) {
         case "not-running":
-          return ws.isStopped || ws.isPaused;
+          return !ws.isRunning;
         case "running":
-          return !ws.isStopped && !ws.isPaused;
+          return ws.isRunning;
         case "stopped-or-completed":
           return ws.isStopped || ws.allCompleted;
         case "all":
@@ -377,6 +389,38 @@ function filterWorkspaces(
 }
 
 /**
+ * List PRD (.md) files from the project's configured PRD directory.
+ * Reads prdOutput from .william/config.json (default: .william/prds).
+ * Returns relative paths from cwd, or empty array if directory doesn't exist.
+ */
+function listPrdFiles(): string[] {
+  const cwd = process.cwd();
+  let prdDir = path.join(cwd, ".william", "prds");
+
+  try {
+    const configPath = path.join(cwd, ".william", "config.json");
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const config = JSON.parse(raw) as { prdOutput?: string };
+    if (config.prdOutput) {
+      prdDir = path.isAbsolute(config.prdOutput)
+        ? config.prdOutput
+        : path.join(cwd, config.prdOutput);
+    }
+  } catch {
+    // No config or invalid JSON — use default
+  }
+
+  try {
+    const entries = fs.readdirSync(prdDir);
+    return entries
+      .filter((e) => e.endsWith(".md"))
+      .map((e) => path.relative(cwd, path.join(prdDir, e)));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Return completions for the _completions hidden subcommand.
  * Called by shell completion scripts at runtime.
  */
@@ -388,6 +432,13 @@ export function getCompletions(
   // No command specified — return all command names
   if (!command) {
     return [...WILLIAM_COMMANDS];
+  }
+
+  // Check if previous word is a flag that expects a value
+  const prevWord =
+    position > 0 && position - 1 < words.length ? words[position - 1] : "";
+  if (prevWord === "--prd" && command === "new") {
+    return listPrdFiles();
   }
 
   // Check if current word starts with - (flag context)
