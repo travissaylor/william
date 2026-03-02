@@ -5,6 +5,7 @@ import { input, confirm } from "@inquirer/prompts";
 import { spawnCapture } from "./adapters/claude.js";
 import { replacePlaceholders } from "./template.js";
 import { resolveTemplatePath } from "./paths.js";
+import { renderMarkdown } from "./ui/render-markdown.js";
 
 export async function collectRevisionProblems(): Promise<string[]> {
   const problems: string[] = [];
@@ -114,10 +115,30 @@ async function spawnAndExtractPlan(
   cwd: string,
   resumeSessionId?: string,
 ): Promise<{ plan: string | null; sessionId: string | null }> {
+  // Buffer streamed text by line so markdown rendering works on complete lines
+  let lineBuffer = "";
+  const onText = (text: string) => {
+    lineBuffer += text;
+    const lines = lineBuffer.split("\n");
+    // Keep the last (potentially incomplete) line in the buffer
+    lineBuffer = lines.pop() ?? "";
+    for (const line of lines) {
+      // Render each complete line with markdown formatting
+      process.stdout.write(renderMarkdown(line) + "\n");
+    }
+  };
+
   const { exitCode, output, sessionId } = await spawnCapture(prompt, {
     cwd,
     resumeSessionId,
+    onText,
   });
+
+  // Flush any remaining buffered text
+  if (lineBuffer) {
+    process.stdout.write(renderMarkdown(lineBuffer));
+    lineBuffer = "";
+  }
 
   if (exitCode !== 0) {
     console.error(
@@ -159,7 +180,7 @@ export async function generateRevisionPlan(
 
   while (!approved) {
     console.log("\n--- Revision Plan ---\n");
-    console.log(plan);
+    console.log(renderMarkdown(plan));
     console.log("\n--- End of Plan ---\n");
 
     const response = await input({
