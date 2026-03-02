@@ -589,9 +589,12 @@ program
   .option("--draft", "Create the PR as a draft")
   .option("--dry-run", "Preview the generated PR without pushing or creating")
   .action(
-    (workspaceName: string, options: { draft?: boolean; dryRun?: boolean }) => {
+    async (
+      workspaceName: string,
+      options: { draft?: boolean; dryRun?: boolean },
+    ) => {
       try {
-        prCommand(workspaceName, {
+        await prCommand(workspaceName, {
           draft: options.draft,
           dryRun: options.dryRun,
         });

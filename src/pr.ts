@@ -1,8 +1,10 @@
 import * as fs from "fs";
-import { execSync, spawnSync } from "child_process";
+import { execSync } from "child_process";
 import { resolveWorkspace } from "./workspace.js";
 import { loadState } from "./prd/tracker.js";
 import { resolveTemplatePath } from "./paths.js";
+import { spawnCapture } from "./adapters/claude.js";
+import { renderMarkdown } from "./ui/render-markdown.js";
 import type { WorkspaceState } from "./types.js";
 
 export interface PrOptions {
@@ -137,7 +139,9 @@ function formatStoryStatus(state: WorkspaceState): string {
   return lines.join("\n");
 }
 
-export function generatePrDescription(state: WorkspaceState): PrDescription {
+export async function generatePrDescription(
+  state: WorkspaceState,
+): Promise<PrDescription> {
   if (!state.worktreePath) {
     throw new Error("Workspace has no worktree path");
   }
@@ -164,31 +168,36 @@ export function generatePrDescription(state: WorkspaceState): PrDescription {
     .replace("{{git_log}}", gitLog)
     .replace("{{story_status}}", storyStatus);
 
-  // Spawn Claude with --print flag to get direct output.
-  // Pipe the prompt via stdin to avoid OS argument length limits on large diffs.
-  const result = spawnSync("claude", ["--print"], {
-    input: prompt,
+  // Stream Claude's output with markdown rendering via spawnCapture
+  let lineBuffer = "";
+  const onText = (text: string) => {
+    lineBuffer += text;
+    const lines = lineBuffer.split("\n");
+    // Keep the last (potentially incomplete) line in the buffer
+    lineBuffer = lines.pop() ?? "";
+    for (const line of lines) {
+      process.stdout.write(renderMarkdown(line) + "\n");
+    }
+  };
+
+  const { exitCode, output } = await spawnCapture(prompt, {
     cwd: worktreePath,
-    stdio: ["pipe", "pipe", "pipe"],
-    maxBuffer: 10 * 1024 * 1024,
+    onText,
   });
 
-  if (result.error) {
-    throw new Error(`Failed to spawn Claude: ${result.error.message}`);
+  // Flush any remaining buffered text
+  if (lineBuffer) {
+    process.stdout.write(renderMarkdown(lineBuffer) + "\n");
+    lineBuffer = "";
   }
 
-  if (result.status !== 0) {
-    const stderr = result.stderr.toString().trim();
-    throw new Error(
-      `Claude exited with code ${result.status}${stderr ? `: ${stderr}` : ""}`,
-    );
+  if (exitCode !== 0) {
+    throw new Error(`Claude exited with code ${exitCode ?? "unknown"}`);
   }
-
-  const output = result.stdout.toString().trim();
 
   // Parse JSON response — handle possible markdown code fences
-  let jsonStr = output;
-  const fenceMatch = /```(?:json)?\s*\n?([\s\S]*?)\n?```/.exec(output);
+  let jsonStr = output.trim();
+  const fenceMatch = /```(?:json)?\s*\n?([\s\S]*?)\n?```/.exec(jsonStr);
   if (fenceMatch) {
     jsonStr = fenceMatch[1].trim();
   }
@@ -291,7 +300,10 @@ function shellEscape(str: string): string {
   return "'" + str.replace(/'/g, "'\\''") + "'";
 }
 
-export function prCommand(workspaceName: string, options: PrOptions): void {
+export async function prCommand(
+  workspaceName: string,
+  options: PrOptions,
+): Promise<void> {
   const resolved = resolveWorkspace(workspaceName);
   const statePath = `${resolved.workspaceDir}/state.json`;
   const state = loadState(statePath);
@@ -320,7 +332,7 @@ export function prCommand(workspaceName: string, options: PrOptions): void {
   }
 
   // US-004: Generate PR title and description via Claude
-  const prDescription = generatePrDescription(state);
+  const prDescription = await generatePrDescription(state);
 
   // US-008: Dry run — print the generated title and body without pushing or creating a PR
   if (options.dryRun) {
