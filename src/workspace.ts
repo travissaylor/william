@@ -419,6 +419,16 @@ export async function startWorkspace(
   const statePath = path.join(resolved.workspaceDir, "state.json");
   const initialState = loadState(statePath);
 
+  // Remove stale stop/pause markers so the workspace can restart
+  const stoppedPath = path.join(resolved.workspaceDir, ".stopped");
+  const pausedPath = path.join(resolved.workspaceDir, ".paused");
+  if (fs.existsSync(stoppedPath)) fs.unlinkSync(stoppedPath);
+  if (fs.existsSync(pausedPath)) fs.unlinkSync(pausedPath);
+
+  // Write .running marker before starting
+  const runningPath = path.join(resolved.workspaceDir, ".running");
+  fs.writeFileSync(runningPath, new Date().toISOString(), "utf-8");
+
   const emitter = new TuiEmitter();
   const inkApp = render(
     createElement(App, {
@@ -437,6 +447,8 @@ export async function startWorkspace(
       emitter,
     );
   } finally {
+    // Remove .running marker when the workspace exits (for any reason)
+    if (fs.existsSync(runningPath)) fs.unlinkSync(runningPath);
     inkApp.unmount();
   }
 }

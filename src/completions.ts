@@ -282,6 +282,7 @@ const COMPLETIONS_ROOT = path.resolve(__dirname, "..");
 
 interface WorkspaceInfo {
   name: string;
+  isRunning: boolean;
   isStopped: boolean;
   isPaused: boolean;
   allCompleted: boolean;
@@ -320,6 +321,7 @@ function listWorkspacesForCompletion(): WorkspaceInfo[] {
 
     for (const ws of workspaces) {
       const wsDir = path.join(projectDir, ws);
+      const isRunning = fs.existsSync(path.join(wsDir, ".running"));
       const isStopped = fs.existsSync(path.join(wsDir, ".stopped"));
       const isPaused = fs.existsSync(path.join(wsDir, ".paused"));
 
@@ -342,6 +344,7 @@ function listWorkspacesForCompletion(): WorkspaceInfo[] {
 
       result.push({
         name: `${project}/${ws}`,
+        isRunning,
         isStopped,
         isPaused,
         allCompleted,
@@ -360,9 +363,9 @@ function filterWorkspaces(
     .filter((ws) => {
       switch (filterType) {
         case "not-running":
-          return ws.isStopped || ws.isPaused;
+          return !ws.isRunning;
         case "running":
-          return !ws.isStopped && !ws.isPaused;
+          return ws.isRunning;
         case "stopped-or-completed":
           return ws.isStopped || ws.allCompleted;
         case "all":
