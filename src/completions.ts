@@ -407,6 +407,35 @@ export function getCompletions(
   return [];
 }
 
+/**
+ * Check whether completions are already installed for the given shell.
+ */
+export function areCompletionsInstalled(shell: ShellType): boolean {
+  const home = os.homedir();
+  const ext = getShellExtension(shell);
+  const scriptPath = path.join(
+    home,
+    ".william",
+    "completions",
+    `william.${ext}`,
+  );
+
+  if (shell === "fish") {
+    const fishPath = path.join(
+      home,
+      ".config",
+      "fish",
+      "completions",
+      "william.fish",
+    );
+    return fs.existsSync(fishPath);
+  }
+
+  const profilePath = getProfilePath(shell);
+  const sourceLine = `source "${scriptPath}"`;
+  return isAlreadyInstalled(profilePath, sourceLine);
+}
+
 export function installCompletions(shell: ShellType): void {
   const home = os.homedir();
   const ext = getShellExtension(shell);
