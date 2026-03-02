@@ -2,9 +2,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { input, confirm } from "@inquirer/prompts";
+import ora from "ora";
 import { spawnCapture } from "./adapters/claude.js";
 import { replacePlaceholders } from "./template.js";
 import { resolveTemplatePath } from "./paths.js";
+import { renderMarkdown } from "./ui/render-markdown.js";
 
 export async function collectRevisionProblems(): Promise<string[]> {
   const problems: string[] = [];
@@ -113,11 +115,44 @@ async function spawnAndExtractPlan(
   prompt: string,
   cwd: string,
   resumeSessionId?: string,
+  spinnerLabel?: string,
 ): Promise<{ plan: string | null; sessionId: string | null }> {
+  const spinner = spinnerLabel ? ora(spinnerLabel).start() : null;
+  let spinnerStopped = false;
+
+  // Buffer streamed text by line so markdown rendering works on complete lines
+  let lineBuffer = "";
+  const onText = (text: string) => {
+    // Stop the spinner once the first token arrives
+    if (spinner && !spinnerStopped) {
+      spinner.stop();
+      spinnerStopped = true;
+    }
+    lineBuffer += text;
+    const lines = lineBuffer.split("\n");
+    // Keep the last (potentially incomplete) line in the buffer
+    lineBuffer = lines.pop() ?? "";
+    for (const line of lines) {
+      // Render each complete line with markdown formatting
+      process.stdout.write(renderMarkdown(line) + "\n");
+    }
+  };
+
   const { exitCode, output, sessionId } = await spawnCapture(prompt, {
     cwd,
     resumeSessionId,
+    onText,
   });
+
+  // Stop spinner if no text was ever received (e.g. error before any output).
+  // ora's stop() is idempotent, so this is safe even if onText already stopped it.
+  spinner?.stop();
+
+  // Flush any remaining buffered text
+  if (lineBuffer) {
+    process.stdout.write(renderMarkdown(lineBuffer));
+    lineBuffer = "";
+  }
 
   if (exitCode !== 0) {
     console.error(
@@ -140,7 +175,12 @@ export async function generateRevisionPlan(
   opts: GeneratePlanOpts,
 ): Promise<string | null> {
   const prompt = buildInitialPrompt(opts);
-  let { plan, sessionId } = await spawnAndExtractPlan(prompt, opts.targetDir);
+  let { plan, sessionId } = await spawnAndExtractPlan(
+    prompt,
+    opts.targetDir,
+    undefined,
+    "Generating revision plan...",
+  );
 
   if (!sessionId) {
     console.warn(
@@ -159,7 +199,7 @@ export async function generateRevisionPlan(
 
   while (!approved) {
     console.log("\n--- Revision Plan ---\n");
-    console.log(plan);
+    console.log(renderMarkdown(plan));
     console.log("\n--- End of Plan ---\n");
 
     const response = await input({
@@ -174,8 +214,6 @@ export async function generateRevisionPlan(
     ) {
       approved = true;
     } else {
-      console.log("\nRegenerating plan with your feedback...\n");
-
       const feedbackPrompt =
         `I have the following feedback on the plan:\n\n${response.trim()}\n\n` +
         "Please regenerate the revision plan taking this feedback into account. " +
@@ -185,6 +223,7 @@ export async function generateRevisionPlan(
         feedbackPrompt,
         opts.targetDir,
         sessionId ?? undefined,
+        "Regenerating plan with feedback...",
       );
 
       if (!result.plan) {

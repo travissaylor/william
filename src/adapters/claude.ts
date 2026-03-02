@@ -48,13 +48,18 @@ export function spawnInteractive(
  */
 export function spawnCapture(
   prompt: string,
-  opts?: { cwd?: string; resumeSessionId?: string },
+  opts?: {
+    cwd?: string;
+    resumeSessionId?: string;
+    onText?: (text: string) => void;
+  },
 ): Promise<{
   exitCode: number | null;
   output: string;
   sessionId: string | null;
 }> {
   const cwd = opts?.cwd ?? process.cwd();
+  const onText = opts?.onText ?? ((text: string) => process.stdout.write(text));
 
   const args = ["--output-format", "stream-json", "--verbose"];
   if (opts?.resumeSessionId) {
@@ -75,7 +80,7 @@ export function spawnCapture(
     if (msg.type === "assistant") {
       for (const block of msg.message.content) {
         if (block.type === "text") {
-          process.stdout.write(block.text);
+          onText(block.text);
         }
       }
     }
