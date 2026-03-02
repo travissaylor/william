@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 
 export type ShellType = "bash" | "zsh" | "fish";
@@ -97,4 +99,114 @@ export function generateScript(shell: ShellType): string {
     case "fish":
       return generateFishScript();
   }
+}
+
+function getShellExtension(shell: ShellType): string {
+  switch (shell) {
+    case "bash":
+      return "bash";
+    case "zsh":
+      return "zsh";
+    case "fish":
+      return "fish";
+  }
+}
+
+function getProfilePath(shell: ShellType): string {
+  const home = os.homedir();
+  switch (shell) {
+    case "bash":
+      // On macOS, prefer ~/.bash_profile; on Linux, prefer ~/.bashrc
+      if (process.platform === "darwin") {
+        return path.join(home, ".bash_profile");
+      }
+      return path.join(home, ".bashrc");
+    case "zsh":
+      return path.join(home, ".zshrc");
+    case "fish":
+      // Fish uses a completions directory, no profile sourcing needed
+      return path.join(home, ".config", "fish", "completions", "william.fish");
+  }
+}
+
+function isAlreadyInstalled(profilePath: string, sourceLine: string): boolean {
+  if (!fs.existsSync(profilePath)) return false;
+  const content = fs.readFileSync(profilePath, "utf-8");
+  return content.includes(sourceLine);
+}
+
+export function installCompletions(shell: ShellType): void {
+  const home = os.homedir();
+  const ext = getShellExtension(shell);
+  const completionsDir = path.join(home, ".william", "completions");
+  const scriptPath = path.join(completionsDir, `william.${ext}`);
+  const script = generateScript(shell);
+
+  if (shell === "fish") {
+    // Fish: write directly to the Fish completions directory
+    const fishCompletionsDir = path.join(
+      home,
+      ".config",
+      "fish",
+      "completions",
+    );
+    fs.mkdirSync(fishCompletionsDir, { recursive: true });
+    const fishPath = path.join(fishCompletionsDir, "william.fish");
+
+    // Also write to ~/.william/completions/ for consistency
+    fs.mkdirSync(completionsDir, { recursive: true });
+    fs.writeFileSync(scriptPath, script);
+
+    // Check if already installed
+    if (
+      fs.existsSync(fishPath) &&
+      fs.readFileSync(fishPath, "utf-8") === script
+    ) {
+      console.log(
+        `Completions already installed at ${fishPath}. Nothing to do.`,
+      );
+      return;
+    }
+
+    fs.writeFileSync(fishPath, script);
+    console.log(`Completion script written to: ${scriptPath}`);
+    console.log(`Fish completions installed to: ${fishPath}`);
+  } else {
+    // Bash/Zsh: write script to ~/.william/completions/ and source from profile
+    fs.mkdirSync(completionsDir, { recursive: true });
+    fs.writeFileSync(scriptPath, script);
+
+    const profilePath = getProfilePath(shell);
+    const sourceLine = `source "${scriptPath}"`;
+
+    if (isAlreadyInstalled(profilePath, sourceLine)) {
+      console.log(
+        `Completions already installed in ${profilePath}. Nothing to do.`,
+      );
+      return;
+    }
+
+    // Append source line to profile
+    const profileExists = fs.existsSync(profilePath);
+    if (profileExists) {
+      const content = fs.readFileSync(profilePath, "utf-8");
+      const separator = content.endsWith("\n") ? "" : "\n";
+      fs.appendFileSync(
+        profilePath,
+        `${separator}\n# william shell completions\n${sourceLine}\n`,
+      );
+    } else {
+      fs.writeFileSync(
+        profilePath,
+        `# william shell completions\n${sourceLine}\n`,
+      );
+    }
+
+    console.log(`Completion script written to: ${scriptPath}`);
+    console.log(`Profile updated: ${profilePath}`);
+  }
+
+  console.log(
+    `\nRestart your shell or run: source ${shell === "fish" ? getProfilePath(shell) : getProfilePath(shell)} to enable completions.`,
+  );
 }

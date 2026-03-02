@@ -28,7 +28,12 @@ import {
 import { migrateWorkspaces } from "./migrate.js";
 import { resolveTemplatePath } from "./paths.js";
 import { buildPrdPrompt } from "./prd-prompt.js";
-import { detectShell, generateScript, type ShellType } from "./completions.js";
+import {
+  detectShell,
+  generateScript,
+  installCompletions,
+  type ShellType,
+} from "./completions.js";
 import { loadState } from "./prd/tracker.js";
 import { prCommand } from "./pr.js";
 import { runWorkspace } from "./runner.js";
@@ -605,7 +610,8 @@ program
     "--shell <shell>",
     "Shell type (bash, zsh, fish). Auto-detected from $SHELL if not provided.",
   )
-  .action((options: { shell?: string }) => {
+  .option("--install", "Install completions to shell profile automatically")
+  .action((options: { shell?: string; install?: boolean }) => {
     const validShells = ["bash", "zsh", "fish"];
     let shell: ShellType;
 
@@ -628,7 +634,11 @@ program
       shell = detected;
     }
 
-    process.stdout.write(generateScript(shell));
+    if (options.install) {
+      installCompletions(shell);
+    } else {
+      process.stdout.write(generateScript(shell));
+    }
   });
 
 program.parse();
