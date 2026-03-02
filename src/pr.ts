@@ -342,9 +342,10 @@ export async function prCommand(
     );
   }
 
-  // Phase 1: Generate PR description
+  // Phase 1: Generate PR description (streamed live with markdown rendering)
   const descSpinner = ora("Generating PR description...").start();
   const prDescription = await generatePrDescription(state, descSpinner);
+  console.log(); // Separate streamed output from phase indicator
   descSpinner.succeed("PR description generated");
 
   // Dry run — print the generated title and body without pushing or creating a PR
