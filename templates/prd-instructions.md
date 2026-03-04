@@ -16,7 +16,7 @@ Do NOT start implementing any code. Your only task is to produce a complete PRD 
 ## The Job
 
 1. Receive a feature description from the user
-2. Ask 3-5 essential clarifying questions
+2. Ask 1 to 3 rounds of 3-5 essential clarifying questions until the problem is clear
 3. Generate a structured PRD based on answers
 4. Save the PRD to the specified output path (or ask the user if none was provided)
 
@@ -30,6 +30,8 @@ Ask only critical questions where the initial prompt is ambiguous. Focus on:
 - **Core Functionality:** What are the key actions?
 - **Scope/Boundaries:** What should it NOT do?
 - **Success Criteria:** How do we know it's done?
+
+**IMPORTANT:** Use the `AskUserQuestion` tool to ask your clarifying questions. Each question should include 2-4 concrete options to make answering quick. You may ask multiple questions at once (up to 4 per tool call). This provides a much better UX than plain text questions.
 
 ## Step 2: PRD Structure
 
@@ -223,7 +225,7 @@ If the feature changes existing documented behavior, consider adding a user stor
 
 Before saving the PRD:
 
-- [ ] Asked clarifying questions with lettered options
+- [ ] Asked clarifying questions using the `AskUserQuestion` tool
 - [ ] Incorporated user's answers
 - [ ] User stories are small and specific
 - [ ] Functional requirements are numbered and unambiguous

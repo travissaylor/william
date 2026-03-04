@@ -7,7 +7,7 @@ Do NOT generate a PRD, write code, or propose solutions. Your only task is to pr
 ## The Job
 
 1. Receive a feature idea or rough concept from the user
-2. Ask 3-5 discovery questions to understand the problem space
+2. Ask 1 to 3 rounds of 3-5 discovery questions to understand the problem space
 3. Generate a structured problem statement and output it directly
 
 ---
@@ -22,7 +22,9 @@ Ask only the questions needed to fill gaps in the user's initial description. Fo
 - **Trigger:** When does this problem surface? What conditions cause it?
 - **Impact:** What happens if this is never solved? What's the cost of inaction?
 
-Present questions with lettered options where possible to make answering quick. Skip questions the user already answered in their initial description.
+**IMPORTANT:** Use the `AskUserQuestion` tool to ask your discovery questions. Each question should include 2-4 concrete options to make answering quick. You may ask multiple questions at once (up to 4 per tool call). This provides a much better UX than plain text questions.
+
+Skip questions the user already answered in their initial description.
 
 ---
 
@@ -117,7 +119,7 @@ Without this, users waste time triaging manually and risk missing deadlines on h
 
 Before outputting the problem statement:
 
-- [ ] Asked discovery questions where the initial idea was vague
+- [ ] Asked discovery questions using the `AskUserQuestion` tool
 - [ ] Incorporated the user's answers
 - [ ] Problem section describes friction, not a solution
 - [ ] Desired state describes an outcome, not an implementation
