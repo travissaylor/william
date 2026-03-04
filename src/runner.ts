@@ -11,6 +11,7 @@ import {
   markStorySkipped,
   incrementAttempts,
 } from "./prd/tracker.js";
+import { registerPid, deregisterPid } from "./safety/pid-registry.js";
 import { parsePrd } from "./prd/parser.js";
 import { buildContext } from "./prd/context-builder.js";
 import { replacePlaceholders } from "./template.js";
@@ -410,12 +411,20 @@ export async function runWorkspace(
       cwd: state.worktreePath ?? state.targetDir,
     });
 
+    if (childProcess.pid) {
+      registerPid(workspaceDir, currentStory, childProcess.pid);
+    }
+
     emitter.thinkingStart();
     const { session } = await consumeStreamOutput({
       childProcess,
       logStream,
       emitter,
     });
+
+    if (childProcess.pid) {
+      deregisterPid(workspaceDir, childProcess.pid);
+    }
 
     const result = adapter.parseOutput(session.fullText);
     result.session = session;

@@ -15,6 +15,8 @@ import { TuiEmitter } from "./ui/events.js";
 import { App } from "./ui/App.js";
 import type { WorkspaceState, RevisionEntry } from "./types.js";
 import { loadProjectConfig } from "./config.js";
+import { cleanupOrphans } from "./safety/pid-registry.js";
+import { killAllAgents } from "./safety/shutdown.js";
 
 export interface ResolvedWorkspace {
   workspaceDir: string;
@@ -425,6 +427,9 @@ export async function startWorkspace(
   if (fs.existsSync(stoppedPath)) fs.unlinkSync(stoppedPath);
   if (fs.existsSync(pausedPath)) fs.unlinkSync(pausedPath);
 
+  // Clean up orphaned processes from a previous crashed session
+  cleanupOrphans(resolved.workspaceDir, statePath);
+
   // Write .running marker before starting
   const runningPath = path.join(resolved.workspaceDir, ".running");
   fs.writeFileSync(runningPath, new Date().toISOString(), "utf-8");
@@ -460,6 +465,10 @@ export function stopWorkspace(name: string): void {
     new Date().toISOString(),
     "utf-8",
   );
+
+  // Kill all registered agents via PID registry
+  killAllAgents(resolved.workspaceDir);
+
   console.log(
     `[william] Stop signal written for workspace "${resolved.projectName}/${resolved.workspaceName}".`,
   );

@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { Command } from "commander";
 import { createElement } from "react";
 import { render } from "ink";
+import lockfile from "proper-lockfile";
 import {
   createWorkspace,
   createRevisionWorkspace,
@@ -40,6 +41,8 @@ import { prCommand } from "./pr.js";
 import { runWorkspace } from "./runner.js";
 import { TuiEmitter } from "./ui/events.js";
 import { App } from "./ui/App.js";
+import { registerShutdownHandlers } from "./safety/shutdown.js";
+import { readRegistry } from "./safety/pid-registry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -151,6 +154,10 @@ program
       try {
         const adapter = ClaudeAdapter;
 
+        // Register signal handlers BEFORE startWorkspace — fires even if setup throws
+        const resolved = resolveWorkspace(workspaceName);
+        registerShutdownHandlers({ workspaceDir: resolved.workspaceDir });
+
         await startWorkspace(workspaceName, {
           adapter,
           maxIterations: parseInt(options.maxIterations, 10),
@@ -181,7 +188,7 @@ program
 program
   .command("status [workspace-name]")
   .description("Show status of workspaces (all or a specific one)")
-  .action((workspaceName?: string) => {
+  .action(async (workspaceName?: string) => {
     try {
       if (workspaceName) {
         // Detailed status for a specific workspace
@@ -206,6 +213,30 @@ program
           const isCurrent = id === status.currentStory ? " ← current" : "";
           console.log(`  ${mark} ${id}${attempts}${isCurrent}`);
         }
+
+        // Safety info
+        const statePath = path.join(resolved.workspaceDir, "state.json");
+        const agents = readRegistry(resolved.workspaceDir);
+        const isLocked = await lockfile.check(statePath).catch(() => false);
+        const stateMtime = fs.statSync(statePath, {
+          throwIfNoEntry: false,
+        })?.mtime;
+
+        console.log("\nSafety:");
+        if (agents.length > 0) {
+          console.log("  Active agents:");
+          for (const agent of agents) {
+            console.log(
+              `    PID ${agent.pid} — ${agent.storyId} (since ${agent.startedAt})`,
+            );
+          }
+        } else {
+          console.log("  Active agents: none");
+        }
+        console.log(`  State lock:    ${isLocked ? "locked" : "unlocked"}`);
+        console.log(
+          `  Last state write: ${stateMtime ? stateMtime.toISOString() : "unknown"}`,
+        );
 
         // Show revisions section for parent workspaces (not for revision workspaces themselves)
         if (!status.state.parentWorkspace) {
@@ -526,6 +557,9 @@ program
       const revisionStatePath = path.join(revisionDir, "state.json");
       const revisionState = loadState(revisionStatePath);
       const revisionName = `${resolved.workspaceName}/revision-${revisionNumber}`;
+
+      // Register signal handlers before runWorkspace
+      registerShutdownHandlers({ workspaceDir: revisionDir });
 
       const emitter = new TuiEmitter();
       const inkApp = render(
