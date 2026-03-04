@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import lockfile from "proper-lockfile";
 import { WorkspaceState, StoryState } from "../types.js";
 import { ParsedPrd } from "./parser.js";
 
@@ -20,13 +21,53 @@ export function saveState(statePath: string, state: WorkspaceState): void {
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2), "utf-8");
 }
 
+export async function saveStateLocked(
+  statePath: string,
+  state: WorkspaceState,
+): Promise<void> {
+  const start = Date.now();
+  const release = await lockfile.lock(statePath, {
+    retries: { retries: 5, minTimeout: 100, maxTimeout: 500 },
+    stale: 10_000,
+  });
+  const elapsed = Date.now() - start;
+  if (elapsed > 2000) {
+    console.warn(
+      "[william] Warning: state lock held for >2s — possible contention.",
+    );
+  }
+  try {
+    saveState(statePath, state);
+  } finally {
+    await release();
+  }
+}
+
 export function getCurrentStory(state: WorkspaceState): string | null {
   for (const [id, story] of Object.entries(state.stories)) {
-    if (story.passes === false) {
+    if (story.passes === false || story.passes === "interrupted") {
       return id;
     }
   }
   return null;
+}
+
+export function markStoryInterrupted(
+  state: WorkspaceState,
+  storyId: string,
+): WorkspaceState {
+  const existing = state.stories[storyId];
+  return {
+    ...state,
+    stories: {
+      ...state.stories,
+      [storyId]: {
+        ...existing,
+        passes: "interrupted",
+        lastAttempt: new Date().toISOString(),
+      } as StoryState,
+    },
+  };
 }
 
 export function markStoryComplete(

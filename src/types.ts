@@ -1,5 +1,5 @@
 export interface StoryState {
-  passes: boolean | "skipped";
+  passes: boolean | "skipped" | "interrupted";
   attempts: number;
   completedAt?: string;
   lastAttempt?: string;
