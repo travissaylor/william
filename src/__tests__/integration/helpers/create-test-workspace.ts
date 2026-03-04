@@ -82,6 +82,32 @@ A test PRD with one story.
 - Tests pass
 `;
 
+/** PRD with two stories for skip/escalation tests. */
+export const TWO_STORY_PRD = `# Test PRD
+
+## Introduction
+
+A test PRD with two stories.
+
+## User Stories
+
+### US-001: Implement feature A
+
+**Description:** As a developer, I want feature A.
+
+**Acceptance Criteria:**
+
+- Feature A works correctly
+
+### US-002: Implement feature B
+
+**Description:** As a developer, I want feature B.
+
+**Acceptance Criteria:**
+
+- Feature B works correctly
+`;
+
 /** PRD with three stories for sequential execution tests. */
 export const THREE_STORY_PRD = `# Test PRD
 

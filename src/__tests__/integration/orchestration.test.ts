@@ -4,6 +4,7 @@ import * as path from "path";
 import {
   createTestWorkspace,
   THREE_STORY_PRD,
+  TWO_STORY_PRD,
   SINGLE_STORY_PRD,
   type TestWorkspaceResult,
 } from "./helpers/create-test-workspace.js";
@@ -792,5 +793,122 @@ describe("Orchestration: stuck detection triggers hint and pause", () => {
     expect(hintContent).toContain("## Session Stats");
     expect(hintContent).toContain("Tool uses:");
     expect(hintContent).toContain("## Suggestion");
+  });
+});
+
+describe("Orchestration: story skip behavior", () => {
+  let ws: TestWorkspaceResult;
+
+  afterEach(() => {
+    ws.cleanup();
+  });
+
+  it("story-1 is skipped after 5 stuck attempts and story-2 proceeds", async () => {
+    ws = createTestWorkspace({ prdText: TWO_STORY_PRD });
+
+    // 5 stuck fixtures for story-1 (triggers skip at attempts=5 with hint present)
+    // then 1 success fixture for story-2
+    const adapter = new MockAdapter([
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      storyCompleteFixture("ALL_COMPLETE"),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 10 },
+      emitter,
+    );
+
+    const state = loadState(ws.statePath);
+
+    // Story-1 should be skipped with a reason
+    expect(state.stories["US-001"].passes).toBe("skipped");
+    expect(state.stories["US-001"].skipReason).toContain(
+      "Skipped after 5 attempts",
+    );
+    expect(state.stories["US-001"].completedAt).toBeDefined();
+
+    // Story-2 should have completed successfully
+    expect(state.stories["US-002"].passes).toBe(true);
+    expect(state.stories["US-002"].completedAt).toBeDefined();
+
+    // Adapter should have been called 6 times (5 stuck + 1 success)
+    expect(adapter.getSpawnCalls()).toHaveLength(6);
+  });
+
+  it("story-2 prompt shows story-1 as skipped in the story table", async () => {
+    ws = createTestWorkspace({ prdText: TWO_STORY_PRD });
+
+    const adapter = new MockAdapter([
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      storyCompleteFixture("ALL_COMPLETE"),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 10 },
+      emitter,
+    );
+
+    const spawnCalls = adapter.getSpawnCalls();
+
+    // The last spawn call is for story-2 — its prompt should show story-1 as skipped
+    const story2Prompt = spawnCalls[spawnCalls.length - 1].prompt;
+    expect(story2Prompt).toContain("US-002");
+    // Story-1 should appear with the skip marker (⊘) in the story table
+    expect(story2Prompt).toContain("⊘ US-001");
+  });
+
+  it("skip is disabled for revision workspaces (pause instead)", async () => {
+    ws = createTestWorkspace({ prdText: TWO_STORY_PRD });
+
+    // Make this a revision workspace
+    const state = loadState(ws.statePath);
+    state.parentWorkspace = ws.workspaceDir;
+    fs.writeFileSync(ws.statePath, JSON.stringify(state, null, 2), "utf-8");
+
+    // For revision workspaces: pauseThreshold=4, skip disabled
+    const adapter = new MockAdapter([
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 10 },
+      emitter,
+    );
+
+    const finalState = loadState(ws.statePath);
+
+    // Story-1 should NOT be skipped — should be paused instead
+    expect(finalState.stories["US-001"].passes).toBe(false);
+    expect(finalState.stories["US-001"].skipReason).toBeUndefined();
+
+    // .paused marker should exist
+    const pausedPath = path.join(ws.workspaceDir, ".paused");
+    expect(fs.existsSync(pausedPath)).toBe(true);
+
+    // Runner should have exited after 4 iterations (pause)
+    expect(adapter.getSpawnCalls()).toHaveLength(4);
   });
 });
