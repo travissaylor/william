@@ -82,25 +82,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SAFE-01 | — | Pending |
-| SAFE-02 | — | Pending |
-| PLAN-01 | — | Pending |
-| PLAN-02 | — | Pending |
-| EXEC-01 | — | Pending |
-| EXEC-02 | — | Pending |
-| EXEC-03 | — | Pending |
-| QUAL-01 | — | Pending |
-| QUAL-02 | — | Pending |
-| TUI-01 | — | Pending |
-| TUI-02 | — | Pending |
-| TOKN-01 | — | Pending |
-| TOKN-02 | — | Pending |
+| SAFE-01 | Phase 1 | Pending |
+| SAFE-02 | Phase 1 | Pending |
+| PLAN-01 | Phase 2 | Pending |
+| PLAN-02 | Phase 2 | Pending |
+| EXEC-01 | Phase 3 | Pending |
+| EXEC-02 | Phase 3 | Pending |
+| EXEC-03 | Phase 3 | Pending |
+| QUAL-01 | Phase 4 | Pending |
+| QUAL-02 | Phase 4 | Pending |
+| TUI-01 | Phase 5 | Pending |
+| TUI-02 | Phase 5 | Pending |
+| TOKN-01 | Phase 6 | Pending |
+| TOKN-02 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 13 total
-- Mapped to phases: 0
-- Unmapped: 13
+- Mapped to phases: 13
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-03*
-*Last updated: 2026-03-03 after initial definition*
+*Last updated: 2026-03-03 after roadmap creation*
