@@ -61,6 +61,200 @@ function storyCompleteFixture(
   };
 }
 
+describe("Orchestration: chain context is passed between stories", () => {
+  let ws: TestWorkspaceResult;
+
+  afterEach(() => {
+    ws.cleanup();
+  });
+
+  /**
+   * Creates a fixture for story-1 that includes Write and Bash tool_use blocks,
+   * so extractChainContext() will capture files modified and commands run.
+   */
+  function storyWithToolsFixture(): NdjsonFixtureConfig {
+    return {
+      messages: [
+        { role: "system" },
+        {
+          role: "assistant",
+          content: "Reading the file first...",
+          toolUse: [
+            {
+              id: "tu-r1",
+              name: "Read",
+              input: { file_path: "/tmp/project/src/utils.ts" },
+            },
+          ],
+        },
+        {
+          role: "user",
+          toolResult: [
+            { toolUseId: "tu-r1", content: "export function hello() {}" },
+          ],
+        },
+        {
+          role: "assistant",
+          content: "Writing the implementation...",
+          toolUse: [
+            {
+              id: "tu-w1",
+              name: "Write",
+              input: {
+                file_path: "/tmp/project/src/feature-a.ts",
+                content: "export const featureA = true;",
+              },
+            },
+          ],
+        },
+        {
+          role: "user",
+          toolResult: [{ toolUseId: "tu-w1", content: "File written." }],
+        },
+        {
+          role: "assistant",
+          content: "Running tests...",
+          toolUse: [
+            {
+              id: "tu-b1",
+              name: "Bash",
+              input: { command: "pnpm test 2>&1" },
+            },
+          ],
+        },
+        {
+          role: "user",
+          toolResult: [{ toolUseId: "tu-b1", content: "All tests passed." }],
+        },
+        {
+          role: "assistant",
+          content: "Done!\n<promise>STORY_COMPLETE</promise>",
+        },
+      ],
+      cost: 0.08,
+      tokens: { input: 3000, output: 1500 },
+      duration: 15000,
+    };
+  }
+
+  it("story-2 prompt contains chain context from story-1", async () => {
+    ws = createTestWorkspace({ prdText: THREE_STORY_PRD });
+
+    const adapter = new MockAdapter([
+      storyWithToolsFixture(),
+      storyCompleteFixture("STORY_COMPLETE"),
+      storyCompleteFixture("ALL_COMPLETE"),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 10 },
+      emitter,
+    );
+
+    const spawnCalls = adapter.getSpawnCalls();
+    expect(spawnCalls).toHaveLength(3);
+
+    // Story-2's prompt should contain chain context from story-1
+    const story2Prompt = spawnCalls[1].prompt;
+    expect(story2Prompt).toContain("Chain Context from US-001");
+    expect(story2Prompt).toContain("/tmp/project/src/feature-a.ts");
+    expect(story2Prompt).toContain("pnpm test 2>&1");
+  });
+
+  it("story-1 prompt does NOT contain chain context", async () => {
+    ws = createTestWorkspace({ prdText: THREE_STORY_PRD });
+
+    const adapter = new MockAdapter([
+      storyWithToolsFixture(),
+      storyCompleteFixture("STORY_COMPLETE"),
+      storyCompleteFixture("ALL_COMPLETE"),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 10 },
+      emitter,
+    );
+
+    const spawnCalls = adapter.getSpawnCalls();
+
+    // Story-1 is the first story — it should NOT have any chain context
+    const story1Prompt = spawnCalls[0].prompt;
+    expect(story1Prompt).not.toContain("Chain Context from");
+  });
+
+  it("story-3 prompt contains chain context from story-2 (not story-1)", async () => {
+    ws = createTestWorkspace({ prdText: THREE_STORY_PRD });
+
+    // Story-2 uses a distinct fixture with different files
+    const story2Fixture: NdjsonFixtureConfig = {
+      messages: [
+        { role: "system" },
+        {
+          role: "assistant",
+          content: "Editing feature B...",
+          toolUse: [
+            {
+              id: "tu-e1",
+              name: "Edit",
+              input: {
+                file_path: "/tmp/project/src/feature-b.ts",
+                old_string: "old",
+                new_string: "new",
+              },
+            },
+          ],
+        },
+        {
+          role: "user",
+          toolResult: [{ toolUseId: "tu-e1", content: "File edited." }],
+        },
+        {
+          role: "assistant",
+          content: "Done!\n<promise>STORY_COMPLETE</promise>",
+        },
+      ],
+      cost: 0.05,
+      tokens: { input: 2000, output: 1000 },
+      duration: 10000,
+    };
+
+    const adapter = new MockAdapter([
+      storyWithToolsFixture(),
+      story2Fixture,
+      storyCompleteFixture("ALL_COMPLETE"),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 10 },
+      emitter,
+    );
+
+    const spawnCalls = adapter.getSpawnCalls();
+    expect(spawnCalls).toHaveLength(3);
+
+    // Story-3's prompt should contain chain context from story-2
+    const story3Prompt = spawnCalls[2].prompt;
+    expect(story3Prompt).toContain("Chain Context from US-002");
+    expect(story3Prompt).toContain("/tmp/project/src/feature-b.ts");
+
+    // Story-3 should NOT contain chain context from story-1
+    // (only the most recent story's context is chained)
+    expect(story3Prompt).not.toContain("Chain Context from US-001");
+  });
+});
+
 describe("Orchestration: happy-path sequential story execution", () => {
   let ws: TestWorkspaceResult;
 
