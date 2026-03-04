@@ -29,7 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Three simultaneous story completions all write to state.json without data loss or corruption
   2. Pressing Ctrl+C or crashing William kills all active Claude processes with no orphaned PIDs remaining
   3. Running `william stop` after a crash terminates any processes listed in the PID registry
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — File locking for state.json writes and StoryState "interrupted" type extension
+- [ ] 01-02-PLAN.md — PID registry, signal handlers, and process lifecycle management
 
 ### Phase 2: Dependency Analysis
 **Goal**: William can analyze a PRD and produce a cycle-free execution graph that identifies which stories depend on which
@@ -88,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Safety Infrastructure | 0/? | Not started | - |
+| 1. Safety Infrastructure | 0/2 | Planning complete | - |
 | 2. Dependency Analysis | 0/? | Not started | - |
 | 3. Parallel Execution Engine | 0/? | Not started | - |
 | 4. Quality Verification Loop | 0/? | Not started | - |
