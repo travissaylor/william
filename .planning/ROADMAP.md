@@ -42,7 +42,10 @@ Plans:
   1. Given a multi-story PRD, William prints which stories are independent and which are blocked by others before starting any agent
   2. Dependency inference uses story content and naming — not a manually declared config file
   3. A PRD with circular story dependencies causes William to halt with a clear error before dispatching any agent
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Dependency inference engine, DAG construction, cycle detection, and report formatting (TDD)
+- [ ] 02-02-PLAN.md — Wire dependency analysis into startWorkspace flow
 
 ### Phase 3: Parallel Execution Engine
 **Goal**: Independent stories execute as simultaneous Claude Code processes, each isolated in its own worktree, subject to a configurable concurrency cap
@@ -92,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Safety Infrastructure | 2/2 | Complete   | 2026-03-04 |
-| 2. Dependency Analysis | 0/? | Not started | - |
+| 2. Dependency Analysis | 0/2 | In progress | - |
 | 3. Parallel Execution Engine | 0/? | Not started | - |
 | 4. Quality Verification Loop | 0/? | Not started | - |
 | 5. Multi-Agent TUI | 0/? | Not started | - |
