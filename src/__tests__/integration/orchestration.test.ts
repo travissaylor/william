@@ -1,8 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
 import * as fs from "fs";
+import * as path from "path";
 import {
   createTestWorkspace,
   THREE_STORY_PRD,
+  SINGLE_STORY_PRD,
   type TestWorkspaceResult,
 } from "./helpers/create-test-workspace.js";
 import {
@@ -456,5 +458,193 @@ describe("Orchestration: happy-path sequential story execution", () => {
     for (const call of adapter.getSpawnCalls()) {
       expect(call.opts.cwd).toBe(ws.workspaceDir);
     }
+  });
+});
+
+/**
+ * Creates a "stuck" NDJSON fixture where the same Read tool is called 12 times
+ * with identical input, triggering tool loop detection (threshold is 10).
+ * Does NOT include a STORY_COMPLETE marker.
+ */
+function stuckToolLoopFixture(): NdjsonFixtureConfig {
+  const messages: NdjsonFixtureConfig["messages"] = [{ role: "system" }];
+
+  for (let i = 0; i < 12; i++) {
+    messages.push({
+      role: "assistant",
+      content: i === 0 ? "Let me check this file..." : undefined,
+      toolUse: [
+        {
+          id: `tu-loop-${i}`,
+          name: "Read",
+          input: { file_path: "/tmp/test.ts" },
+        },
+      ],
+    });
+    messages.push({
+      role: "user",
+      toolResult: [{ toolUseId: `tu-loop-${i}`, content: "file contents" }],
+    });
+  }
+
+  messages.push({
+    role: "assistant",
+    content: "I seem to be stuck.",
+  });
+
+  return {
+    messages,
+    cost: 0.05,
+    tokens: { input: 2000, output: 1000 },
+    duration: 10000,
+  };
+}
+
+describe("Orchestration: stuck detection triggers hint and pause", () => {
+  let ws: TestWorkspaceResult;
+
+  afterEach(() => {
+    ws.cleanup();
+  });
+
+  it("tool loop detection writes .stuck-hint.md on first non-completing attempt", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    // One stuck fixture + enough iterations to see the hint written
+    const adapter = new MockAdapter([stuckToolLoopFixture()]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      {
+        adapter,
+        sleepMs: 0,
+        maxIterations: 1,
+      },
+      emitter,
+    );
+
+    // Verify .stuck-hint.md was written
+    const stuckHintPath = path.join(ws.workspaceDir, ".stuck-hint.md");
+    expect(fs.existsSync(stuckHintPath)).toBe(true);
+
+    const hintContent = fs.readFileSync(stuckHintPath, "utf-8");
+    expect(hintContent).toContain("Stuck Hint for US-001");
+    expect(hintContent).toContain("tool loop");
+
+    // Verify attempts counter incremented to 1
+    const state = loadState(ws.statePath);
+    expect(state.stories["US-001"].attempts).toBe(1);
+    expect(state.stories["US-001"].passes).toBe(false);
+  });
+
+  it("attempts counter increments on each non-completing iteration", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    const adapter = new MockAdapter([
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      {
+        adapter,
+        sleepMs: 0,
+        maxIterations: 3,
+      },
+      emitter,
+    );
+
+    const state = loadState(ws.statePath);
+    expect(state.stories["US-001"].attempts).toBe(3);
+  });
+
+  it("pause triggers after reaching pause threshold (revision workspace)", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    // Make this a revision workspace so skip is disabled and pauseThreshold=4
+    const state = loadState(ws.statePath);
+    state.parentWorkspace = ws.workspaceDir;
+    fs.writeFileSync(ws.statePath, JSON.stringify(state, null, 2), "utf-8");
+
+    // Need 4 iterations: hint written on iter 1 (tool loop), pause on iter 4
+    const adapter = new MockAdapter([
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+      stuckToolLoopFixture(),
+    ]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      {
+        adapter,
+        sleepMs: 0,
+        maxIterations: 10,
+      },
+      emitter,
+    );
+
+    // Verify .paused marker file was created
+    const pausedPath = path.join(ws.workspaceDir, ".paused");
+    expect(fs.existsSync(pausedPath)).toBe(true);
+
+    const pausedContent = fs.readFileSync(pausedPath, "utf-8");
+    expect(pausedContent).toContain("Paused");
+    expect(pausedContent).toContain("US-001");
+
+    // Verify .stuck-hint.md also exists
+    const stuckHintPath = path.join(ws.workspaceDir, ".stuck-hint.md");
+    expect(fs.existsSync(stuckHintPath)).toBe(true);
+
+    // Verify runner exited — adapter was called 4 times (not 10)
+    expect(adapter.getSpawnCalls()).toHaveLength(4);
+
+    // Verify state: attempts = 4, story not completed
+    const finalState = loadState(ws.statePath);
+    expect(finalState.stories["US-001"].attempts).toBe(4);
+    expect(finalState.stories["US-001"].passes).toBe(false);
+  });
+
+  it("stuck hint contains tool loop reason and session details", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    const adapter = new MockAdapter([stuckToolLoopFixture()]);
+
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      {
+        adapter,
+        sleepMs: 0,
+        maxIterations: 1,
+      },
+      emitter,
+    );
+
+    const stuckHintPath = path.join(ws.workspaceDir, ".stuck-hint.md");
+    const hintContent = fs.readFileSync(stuckHintPath, "utf-8");
+
+    // Verify hint structure
+    expect(hintContent).toContain("# Stuck Hint for US-001");
+    expect(hintContent).toContain("## Reason");
+    expect(hintContent).toContain(
+      "same tool called 10+ times with identical input",
+    );
+    expect(hintContent).toContain("## Session Stats");
+    expect(hintContent).toContain("Tool uses:");
+    expect(hintContent).toContain("## Suggestion");
   });
 });
