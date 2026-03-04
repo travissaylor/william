@@ -85,38 +85,60 @@ program
   .command("new")
   .description("Interactive wizard to create a new workspace")
   .option("-p, --prd <path>", "PRD file path — skip wizard and use defaults")
-  .action(async (options: { prd?: string }) => {
-    try {
-      const result = options.prd
-        ? buildPrdWizardResult(options.prd)
-        : await runNewWizard();
-
-      const worktreePath = createWorkspace(result.workspaceName, {
-        targetDir: result.targetDir,
-        prdFile: result.prdFile,
-        branchName: result.branchName,
-        project: result.projectName,
-      });
-
-      console.log("\nWorkspace created:");
-      console.log(`  Name:      ${result.workspaceName}`);
-      console.log(`  Project:   ${result.projectName}`);
-      console.log(`  Target:    ${result.targetDir}`);
-      console.log(`  Branch:    ${result.branchName}`);
-      console.log(`  PRD:       ${result.prdFile}`);
-      console.log(`  Worktree:  ${worktreePath}`);
-      console.log(`\nRun: william start ${result.workspaceName}`);
-    } catch (err) {
-      if (err instanceof Error && err.name === "ExitPromptError") {
-        console.log("\nWizard cancelled.");
-        return;
+  .option(
+    "--git-workflow <mode>",
+    "Git workflow mode: worktree or branch",
+    (value: string) => {
+      if (value !== "worktree" && value !== "branch") {
+        throw new Error(
+          `Invalid git workflow mode "${value}". Must be "worktree" or "branch".`,
+        );
       }
-      console.error(
-        `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      process.exit(1);
-    }
-  });
+      return value;
+    },
+  )
+  .action(
+    async (options: { prd?: string; gitWorkflow?: "worktree" | "branch" }) => {
+      try {
+        const wizardOpts = options.gitWorkflow
+          ? { gitWorkflow: options.gitWorkflow }
+          : undefined;
+
+        const result = options.prd
+          ? buildPrdWizardResult(options.prd, wizardOpts)
+          : await runNewWizard(wizardOpts);
+
+        const worktreePath = createWorkspace(result.workspaceName, {
+          targetDir: result.targetDir,
+          prdFile: result.prdFile,
+          branchName: result.branchName,
+          project: result.projectName,
+          gitWorkflow: result.gitWorkflow,
+        });
+
+        console.log("\nWorkspace created:");
+        console.log(`  Name:      ${result.workspaceName}`);
+        console.log(`  Project:   ${result.projectName}`);
+        console.log(`  Target:    ${result.targetDir}`);
+        console.log(`  Branch:    ${result.branchName}`);
+        console.log(`  PRD:       ${result.prdFile}`);
+        console.log(`  Workflow:  ${result.gitWorkflow}`);
+        if (worktreePath) {
+          console.log(`  Worktree:  ${worktreePath}`);
+        }
+        console.log(`\nRun: william start ${result.workspaceName}`);
+      } catch (err) {
+        if (err instanceof Error && err.name === "ExitPromptError") {
+          console.log("\nWizard cancelled.");
+          return;
+        }
+        console.error(
+          `[william] Error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        process.exit(1);
+      }
+    },
+  );
 
 program
   .command("init")

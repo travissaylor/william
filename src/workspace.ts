@@ -187,17 +187,20 @@ function installWorktreeDeps(worktreePath: string, workspaceDir: string): void {
 }
 
 /**
- * Load project config from the target directory and run each setupCommands
+ * Load project config from the target directory and run each setup command
  * entry sequentially in the worktree. Failures log a warning but do not abort.
+ * Reads from `git.worktreeSetupCommands`, falling back to legacy `setupCommands`.
  */
 export function runSetupCommands(
   targetDir: string,
   worktreePath: string,
 ): void {
   const config = loadProjectConfig(targetDir);
-  if (!config?.setupCommands?.length) return;
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy fallback
+  const commands = config?.git?.worktreeSetupCommands ?? config?.setupCommands;
+  if (!commands?.length) return;
 
-  for (const cmd of config.setupCommands) {
+  for (const cmd of commands) {
     console.log(`[william] Running setup: ${cmd}`);
     const result = spawnSync(cmd, {
       shell: true,
@@ -217,16 +220,18 @@ export interface CreateWorkspaceOpts {
   prdFile: string;
   branchName: string;
   project?: string;
+  gitWorkflow?: "worktree" | "branch";
 }
 
 export function createWorkspace(
   name: string,
   opts: CreateWorkspaceOpts,
-): string {
+): string | null {
   const projectName =
     opts.project ?? path.basename(path.resolve(opts.targetDir));
   const workspaceDir = path.join(WILLIAM_ROOT, "workspaces", projectName, name);
   const prdPath = path.resolve(opts.prdFile);
+  const gitWorkflow = opts.gitWorkflow ?? "worktree";
 
   if (fs.existsSync(workspaceDir)) {
     throw new Error(
@@ -254,42 +259,56 @@ export function createWorkspace(
   // Create workspace directory structure first
   fs.mkdirSync(path.join(workspaceDir, "logs"), { recursive: true });
 
-  // Create git worktree for isolation
-  const worktreePath = path.join(workspaceDir, "worktree");
-  try {
-    // Try creating with a new branch first
-    execSync(
-      `git worktree add ${JSON.stringify(worktreePath)} -b ${JSON.stringify(opts.branchName)}`,
-      {
+  let worktreePath: string | undefined;
+
+  if (gitWorkflow === "branch") {
+    // Branch mode: create branch without worktree
+    try {
+      execSync(`git branch ${JSON.stringify(opts.branchName)}`, {
         cwd: resolvedTarget,
         stdio: "pipe",
-      },
-    );
-  } catch {
-    // Branch may already exist — try without -b to reuse it
+      });
+    } catch {
+      // Branch may already exist — that's fine in branch mode
+    }
+  } else {
+    // Worktree mode: create git worktree for isolation
+    worktreePath = path.join(workspaceDir, "worktree");
     try {
+      // Try creating with a new branch first
       execSync(
-        `git worktree add ${JSON.stringify(worktreePath)} ${JSON.stringify(opts.branchName)}`,
+        `git worktree add ${JSON.stringify(worktreePath)} -b ${JSON.stringify(opts.branchName)}`,
         {
           cwd: resolvedTarget,
           stdio: "pipe",
         },
       );
-    } catch (err) {
-      // Clean up the partially created workspace directory
-      fs.rmSync(workspaceDir, { recursive: true, force: true });
-      const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `Failed to create git worktree for branch "${opts.branchName}": ${msg}`,
-      );
+    } catch {
+      // Branch may already exist — try without -b to reuse it
+      try {
+        execSync(
+          `git worktree add ${JSON.stringify(worktreePath)} ${JSON.stringify(opts.branchName)}`,
+          {
+            cwd: resolvedTarget,
+            stdio: "pipe",
+          },
+        );
+      } catch (err) {
+        // Clean up the partially created workspace directory
+        fs.rmSync(workspaceDir, { recursive: true, force: true });
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Failed to create git worktree for branch "${opts.branchName}": ${msg}`,
+        );
+      }
     }
+
+    // Install dependencies in the worktree if a known lockfile is present
+    installWorktreeDeps(worktreePath, workspaceDir);
+
+    // Run project-level setup commands if configured
+    runSetupCommands(resolvedTarget, worktreePath);
   }
-
-  // Install dependencies in the worktree if a known lockfile is present
-  installWorktreeDeps(worktreePath, workspaceDir);
-
-  // Run project-level setup commands if configured
-  runSetupCommands(resolvedTarget, worktreePath);
 
   const state = initStateFromPrd(parsedPrd, {
     workspace: name,
@@ -299,6 +318,7 @@ export function createWorkspace(
     sourceFile: prdPath,
     worktreePath,
   });
+  state.gitWorkflow = gitWorkflow;
 
   fs.writeFileSync(
     path.join(workspaceDir, "state.json"),
@@ -314,7 +334,7 @@ export function createWorkspace(
   // Copy the PRD into the workspace directory
   fs.copyFileSync(prdPath, path.join(workspaceDir, "prd.md"));
 
-  return worktreePath;
+  return worktreePath ?? null;
 }
 
 export interface CreateRevisionWorkspaceOpts {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { loadProjectConfig } from "./config.js";
+import { loadProjectConfig, normalizeGitConfig } from "./config.js";
 
 describe("loadProjectConfig", () => {
   let tmpDir: string;
@@ -33,6 +33,8 @@ describe("loadProjectConfig", () => {
       }),
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const config = loadProjectConfig(tmpDir);
     expect(config).toEqual({
       projectName: "my-app",
@@ -40,7 +42,12 @@ describe("loadProjectConfig", () => {
       prdOutput: "docs/prds",
       skipDefaults: true,
       setupCommands: ["cp .env.example .env", "pnpm db:seed"],
+      git: {
+        branchPrefix: "feature/",
+        worktreeSetupCommands: ["cp .env.example .env", "pnpm db:seed"],
+      },
     });
+    warnSpy.mockRestore();
   });
 
   it("returns null and warns on invalid JSON", () => {
@@ -93,9 +100,89 @@ describe("loadProjectConfig", () => {
       JSON.stringify({ branchPrefix: "fix/" }),
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const config = loadProjectConfig(tmpDir);
-    expect(config).toEqual({ branchPrefix: "fix/" });
+    expect(config).toEqual({
+      branchPrefix: "fix/",
+      git: { branchPrefix: "fix/" },
+    });
     expect(config?.projectName).toBeUndefined();
     expect(config?.skipDefaults).toBeUndefined();
+    warnSpy.mockRestore();
+  });
+
+  it("reads git object directly when present", () => {
+    const configDir = path.join(tmpDir, ".william");
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, "config.json"),
+      JSON.stringify({
+        projectName: "my-app",
+        git: {
+          workflow: "branch",
+          branchPrefix: "feat/",
+          worktreeSetupCommands: ["pnpm install"],
+        },
+      }),
+    );
+
+    const config = loadProjectConfig(tmpDir);
+    expect(config?.git?.workflow).toBe("branch");
+    expect(config?.git?.branchPrefix).toBe("feat/");
+    expect(config?.git?.worktreeSetupCommands).toEqual(["pnpm install"]);
+  });
+
+  it("does not override git object values with legacy values", () => {
+    const configDir = path.join(tmpDir, ".william");
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, "config.json"),
+      JSON.stringify({
+        branchPrefix: "old/",
+        setupCommands: ["old-cmd"],
+        git: {
+          branchPrefix: "new/",
+          worktreeSetupCommands: ["new-cmd"],
+        },
+      }),
+    );
+
+    const config = loadProjectConfig(tmpDir);
+    expect(config?.git?.branchPrefix).toBe("new/");
+    expect(config?.git?.worktreeSetupCommands).toEqual(["new-cmd"]);
+  });
+});
+
+describe("normalizeGitConfig", () => {
+  it("migrates top-level branchPrefix into git object with deprecation warning", () => {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const result = normalizeGitConfig({ branchPrefix: "feat/" });
+
+    expect(result.git?.branchPrefix).toBe("feat/");
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("branchPrefix"),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it("migrates top-level setupCommands into git.worktreeSetupCommands with deprecation warning", () => {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const result = normalizeGitConfig({
+      setupCommands: ["pnpm install"],
+    });
+
+    expect(result.git?.worktreeSetupCommands).toEqual(["pnpm install"]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("setupCommands"),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it("defaults git.workflow to undefined (resolved as worktree by consumers)", () => {
+    const result = normalizeGitConfig({ projectName: "test" });
+    expect(result.git).toBeUndefined();
   });
 });

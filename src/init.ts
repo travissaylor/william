@@ -1,7 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
-import { input, confirm, editor } from "@inquirer/prompts";
-import { loadProjectConfig, type ProjectConfig } from "./config.js";
+import { input, confirm, editor, select } from "@inquirer/prompts";
+import {
+  loadProjectConfig,
+  type ProjectConfig,
+  type GitConfig,
+} from "./config.js";
 import {
   detectShell,
   areCompletionsInstalled,
@@ -53,6 +57,16 @@ export async function runInit(): Promise<void> {
     },
   });
 
+  const gitWorkflow = await select<"worktree" | "branch">({
+    message:
+      "Git workflow (worktree creates an isolated worktree; branch creates a branch only):",
+    choices: [
+      { value: "worktree" as const, name: "worktree" },
+      { value: "branch" as const, name: "branch" },
+    ],
+    default: "worktree",
+  });
+
   const setupRaw = await editor({
     message: "Setup commands (one per line, runs in worktree after creation):",
     default: "",
@@ -68,13 +82,18 @@ export async function runInit(): Promise<void> {
     default: true,
   });
 
+  // Build git config object, omitting empty/default values
+  const git: GitConfig = {};
+  if (gitWorkflow !== "worktree") git.workflow = gitWorkflow;
+  if (branchPrefix) git.branchPrefix = branchPrefix;
+  if (setupCommands.length > 0) git.worktreeSetupCommands = setupCommands;
+
   // Build config object, omitting empty/default values
   const config: ProjectConfig = {};
 
   if (projectName) config.projectName = projectName;
-  if (branchPrefix) config.branchPrefix = branchPrefix;
   if (prdOutput !== ".william/prds") config.prdOutput = prdOutput;
-  if (setupCommands.length > 0) config.setupCommands = setupCommands;
+  if (Object.keys(git).length > 0) config.git = git;
 
   // Create .william/ directory and write config
   fs.mkdirSync(configDir, { recursive: true });

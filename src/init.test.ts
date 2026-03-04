@@ -8,14 +8,16 @@ vi.mock("@inquirer/prompts", () => ({
   input: vi.fn(),
   confirm: vi.fn(),
   editor: vi.fn(),
+  select: vi.fn(),
 }));
 
-import { input, confirm, editor } from "@inquirer/prompts";
+import { input, confirm, editor, select } from "@inquirer/prompts";
 import { runInit } from "./init.js";
 
 const mockInput = vi.mocked(input);
 const mockConfirm = vi.mocked(confirm);
 const mockEditor = vi.mocked(editor);
+const mockSelect = vi.mocked(select);
 
 function readConfig(filePath: string): ProjectConfig {
   return JSON.parse(fs.readFileSync(filePath, "utf-8")) as ProjectConfig;
@@ -42,6 +44,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project") // projectName
       .mockResolvedValueOnce("feature/") // branchPrefix
       .mockResolvedValueOnce("docs/prds"); // prdOutput
+    mockSelect.mockResolvedValueOnce("worktree"); // git.workflow
     mockEditor.mockResolvedValueOnce("cp .env.example .env\npnpm db:seed\n");
     mockConfirm.mockResolvedValueOnce(false); // gitignore
 
@@ -53,9 +56,11 @@ describe("runInit", () => {
     const config = readConfig(configPath);
     expect(config).toEqual({
       projectName: "my-project",
-      branchPrefix: "feature/",
       prdOutput: "docs/prds",
-      setupCommands: ["cp .env.example .env", "pnpm db:seed"],
+      git: {
+        branchPrefix: "feature/",
+        worktreeSetupCommands: ["cp .env.example .env", "pnpm db:seed"],
+      },
     });
   });
 
@@ -64,14 +69,14 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project")
       .mockResolvedValueOnce("") // no branch prefix
       .mockResolvedValueOnce(".william/prds"); // default prdOutput
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce("");
     mockConfirm.mockResolvedValueOnce(false);
 
     await runInit();
 
     const config = readConfig(path.join(tmpDir, ".william", "config.json"));
-    expect(config.branchPrefix).toBeUndefined();
-    expect(config.setupCommands).toBeUndefined();
+    expect(config.git).toBeUndefined();
   });
 
   it("omits prdOutput when set to the default .william/prds", async () => {
@@ -79,6 +84,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project")
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce("");
     mockConfirm.mockResolvedValueOnce(false);
 
@@ -95,6 +101,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project")
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce("");
     mockConfirm.mockResolvedValueOnce(true); // add to gitignore
 
@@ -110,6 +117,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project")
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce("");
     mockConfirm.mockResolvedValueOnce(true);
 
@@ -130,6 +138,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project")
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce("");
     mockConfirm.mockResolvedValueOnce(true);
 
@@ -176,6 +185,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("new-project")
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce("");
 
     await runInit();
@@ -189,6 +199,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project")
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce(
       "\n  cp .env.example .env  \n\n  pnpm db:seed\n\n",
     );
@@ -197,7 +208,7 @@ describe("runInit", () => {
     await runInit();
 
     const config = readConfig(path.join(tmpDir, ".william", "config.json"));
-    expect(config.setupCommands).toEqual([
+    expect(config.git?.worktreeSetupCommands).toEqual([
       "cp .env.example .env",
       "pnpm db:seed",
     ]);
@@ -210,6 +221,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce("my-project")
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
+    mockSelect.mockResolvedValueOnce("worktree");
     mockEditor.mockResolvedValueOnce("");
     mockConfirm.mockResolvedValueOnce(true);
 

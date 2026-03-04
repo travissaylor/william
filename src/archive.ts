@@ -73,8 +73,8 @@ export function archiveWorkspace(name: string): string {
     );
   }
 
-  // Clean up git worktree if present
-  if (state.worktreePath) {
+  // Clean up git worktree if present (skip for branch-mode workspaces)
+  if (state.gitWorkflow !== "branch" && state.worktreePath) {
     if (fs.existsSync(state.worktreePath)) {
       try {
         execSync(`git worktree remove ${JSON.stringify(state.worktreePath)}`, {

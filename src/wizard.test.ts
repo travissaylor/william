@@ -234,6 +234,51 @@ describe("runNewWizard", () => {
     const branchCall = mockInput.mock.calls[4][0];
     expect(branchCall.default).toBe("my-workspace");
   });
+
+  it("defaults gitWorkflow to worktree when no config or options", async () => {
+    mockLoadConfig.mockReturnValue(null);
+    const prdPath = path.join(tmpDir, "feature.md");
+
+    mockInput
+      .mockResolvedValueOnce(prdPath)
+      .mockResolvedValueOnce("feature")
+      .mockResolvedValueOnce(tmpDir)
+      .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("feature");
+
+    const result = await runNewWizard();
+    expect(result.gitWorkflow).toBe("worktree");
+  });
+
+  it("uses git.workflow from config", async () => {
+    mockLoadConfig.mockReturnValue({ git: { workflow: "branch" } });
+    const prdPath = path.join(tmpDir, "feature.md");
+
+    mockInput
+      .mockResolvedValueOnce(prdPath)
+      .mockResolvedValueOnce("feature")
+      .mockResolvedValueOnce(tmpDir)
+      .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("feature");
+
+    const result = await runNewWizard();
+    expect(result.gitWorkflow).toBe("branch");
+  });
+
+  it("CLI gitWorkflow option overrides config", async () => {
+    mockLoadConfig.mockReturnValue({ git: { workflow: "branch" } });
+    const prdPath = path.join(tmpDir, "feature.md");
+
+    mockInput
+      .mockResolvedValueOnce(prdPath)
+      .mockResolvedValueOnce("feature")
+      .mockResolvedValueOnce(tmpDir)
+      .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("feature");
+
+    const result = await runNewWizard({ gitWorkflow: "worktree" });
+    expect(result.gitWorkflow).toBe("worktree");
+  });
 });
 
 describe("buildPrdWizardResult", () => {
@@ -345,5 +390,33 @@ describe("buildPrdWizardResult", () => {
     expect(result.branchName).toBe("feat/my-feature");
     expect(result.workspaceName).toBe("my-feature");
     expect(result.targetDir).toBe(tmpDir);
+  });
+
+  it("defaults gitWorkflow to worktree when no config or options", () => {
+    mockLoadConfig.mockReturnValue(null);
+    const result = buildPrdWizardResult("my-feature.md");
+    expect(result.gitWorkflow).toBe("worktree");
+  });
+
+  it("uses git.workflow from config", () => {
+    mockLoadConfig.mockReturnValue({ git: { workflow: "branch" } });
+    const result = buildPrdWizardResult("my-feature.md");
+    expect(result.gitWorkflow).toBe("branch");
+  });
+
+  it("CLI gitWorkflow option overrides config", () => {
+    mockLoadConfig.mockReturnValue({ git: { workflow: "branch" } });
+    const result = buildPrdWizardResult("my-feature.md", {
+      gitWorkflow: "worktree",
+    });
+    expect(result.gitWorkflow).toBe("worktree");
+  });
+
+  it("CLI gitWorkflow option works without config", () => {
+    mockLoadConfig.mockReturnValue(null);
+    const result = buildPrdWizardResult("my-feature.md", {
+      gitWorkflow: "branch",
+    });
+    expect(result.gitWorkflow).toBe("branch");
   });
 });

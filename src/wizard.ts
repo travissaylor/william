@@ -9,13 +9,21 @@ export interface WizardResult {
   targetDir: string;
   projectName: string;
   branchName: string;
+  gitWorkflow: "worktree" | "branch";
+}
+
+export interface WizardOptions {
+  gitWorkflow?: "worktree" | "branch";
 }
 
 /**
  * Build a WizardResult directly from a PRD path, bypassing all interactive prompts.
  * Uses project config for projectName and branchPrefix when available.
  */
-export function buildPrdWizardResult(prdPath: string): WizardResult {
+export function buildPrdWizardResult(
+  prdPath: string,
+  options?: WizardOptions,
+): WizardResult {
   const cwd = process.cwd();
   const resolved = path.resolve(prdPath);
 
@@ -32,9 +40,14 @@ export function buildPrdWizardResult(prdPath: string): WizardResult {
   const config = loadProjectConfig(cwd);
   const workspaceName = path.basename(resolved, ".md");
   const projectName = config?.projectName ?? path.basename(cwd);
-  const branchName = config?.branchPrefix
-    ? `${config.branchPrefix}${workspaceName}`
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy fallback
+  const branchPrefix = config?.git?.branchPrefix ?? config?.branchPrefix;
+  const branchName = branchPrefix
+    ? `${branchPrefix}${workspaceName}`
     : workspaceName;
+
+  const gitWorkflow =
+    options?.gitWorkflow ?? config?.git?.workflow ?? "worktree";
 
   return {
     prdFile: resolved,
@@ -42,10 +55,13 @@ export function buildPrdWizardResult(prdPath: string): WizardResult {
     targetDir: cwd,
     projectName,
     branchName,
+    gitWorkflow,
   };
 }
 
-export async function runNewWizard(): Promise<WizardResult> {
+export async function runNewWizard(
+  options?: WizardOptions,
+): Promise<WizardResult> {
   const config = loadProjectConfig(process.cwd());
 
   const prdFile = await input({
@@ -109,12 +125,16 @@ export async function runNewWizard(): Promise<WizardResult> {
     });
   }
 
-  const defaultBranch = config?.branchPrefix
-    ? `${config.branchPrefix}${workspaceName}`
+  /* eslint-disable @typescript-eslint/no-deprecated -- legacy fallback */
+  const branchPrefixResolved =
+    config?.git?.branchPrefix ?? config?.branchPrefix;
+  /* eslint-enable @typescript-eslint/no-deprecated */
+  const defaultBranch = branchPrefixResolved
+    ? `${branchPrefixResolved}${workspaceName}`
     : workspaceName;
 
   let branchName: string;
-  if (config?.skipDefaults && config.branchPrefix) {
+  if (config?.skipDefaults && branchPrefixResolved) {
     branchName = defaultBranch;
   } else {
     branchName = await input({
@@ -129,11 +149,15 @@ export async function runNewWizard(): Promise<WizardResult> {
     });
   }
 
+  const gitWorkflow =
+    options?.gitWorkflow ?? config?.git?.workflow ?? "worktree";
+
   return {
     prdFile: path.resolve(prdFile),
     workspaceName,
     targetDir: resolvedTarget,
     projectName,
     branchName,
+    gitWorkflow,
   };
 }
