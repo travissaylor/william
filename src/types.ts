@@ -20,6 +20,7 @@ export interface WorkspaceState {
   branchName: string;
   sourceFile: string;
   worktreePath?: string;
+  gitWorkflow?: "worktree" | "branch";
   stories: Record<string, StoryState>;
   currentStory: string | null;
   startedAt: string;

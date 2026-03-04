@@ -113,6 +113,7 @@ program
           prdFile: result.prdFile,
           branchName: result.branchName,
           project: result.projectName,
+          gitWorkflow: result.gitWorkflow,
         });
 
         console.log("\nWorkspace created:");
@@ -122,7 +123,9 @@ program
         console.log(`  Branch:    ${result.branchName}`);
         console.log(`  PRD:       ${result.prdFile}`);
         console.log(`  Workflow:  ${result.gitWorkflow}`);
-        console.log(`  Worktree:  ${worktreePath}`);
+        if (worktreePath) {
+          console.log(`  Worktree:  ${worktreePath}`);
+        }
         console.log(`\nRun: william start ${result.workspaceName}`);
       } catch (err) {
         if (err instanceof Error && err.name === "ExitPromptError") {
