@@ -9,13 +9,21 @@ export interface WizardResult {
   targetDir: string;
   projectName: string;
   branchName: string;
+  gitWorkflow: "worktree" | "branch";
+}
+
+export interface WizardOptions {
+  gitWorkflow?: "worktree" | "branch";
 }
 
 /**
  * Build a WizardResult directly from a PRD path, bypassing all interactive prompts.
  * Uses project config for projectName and branchPrefix when available.
  */
-export function buildPrdWizardResult(prdPath: string): WizardResult {
+export function buildPrdWizardResult(
+  prdPath: string,
+  options?: WizardOptions,
+): WizardResult {
   const cwd = process.cwd();
   const resolved = path.resolve(prdPath);
 
@@ -38,16 +46,22 @@ export function buildPrdWizardResult(prdPath: string): WizardResult {
     ? `${branchPrefix}${workspaceName}`
     : workspaceName;
 
+  const gitWorkflow =
+    options?.gitWorkflow ?? config?.git?.workflow ?? "worktree";
+
   return {
     prdFile: resolved,
     workspaceName,
     targetDir: cwd,
     projectName,
     branchName,
+    gitWorkflow,
   };
 }
 
-export async function runNewWizard(): Promise<WizardResult> {
+export async function runNewWizard(
+  options?: WizardOptions,
+): Promise<WizardResult> {
   const config = loadProjectConfig(process.cwd());
 
   const prdFile = await input({
@@ -135,11 +149,15 @@ export async function runNewWizard(): Promise<WizardResult> {
     });
   }
 
+  const gitWorkflow =
+    options?.gitWorkflow ?? config?.git?.workflow ?? "worktree";
+
   return {
     prdFile: path.resolve(prdFile),
     workspaceName,
     targetDir: resolvedTarget,
     projectName,
     branchName,
+    gitWorkflow,
   };
 }
