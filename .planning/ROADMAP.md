@@ -12,7 +12,7 @@ William's existing foundation handles workspace lifecycle, sequential agent exec
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Safety Infrastructure** - Protect state from concurrent writes and orphaned processes before any parallel agent is dispatched
+- [x] **Phase 1: Safety Infrastructure** - Protect state from concurrent writes and orphaned processes before any parallel agent is dispatched (completed 2026-03-04)
 - [ ] **Phase 2: Dependency Analysis** - Infer story execution order from PRD content so William knows what can run in parallel
 - [ ] **Phase 3: Parallel Execution Engine** - Run independent stories as concurrent Claude Code processes in isolated worktrees
 - [ ] **Phase 4: Quality Verification Loop** - Automatically verify each completed story against tests, lint, typecheck, and PRD acceptance criteria
@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Three simultaneous story completions all write to state.json without data loss or corruption
   2. Pressing Ctrl+C or crashing William kills all active Claude processes with no orphaned PIDs remaining
   3. Running `william stop` after a crash terminates any processes listed in the PID registry
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 01-01-PLAN.md — File locking for state.json writes and StoryState "interrupted" type extension
 - [ ] 01-02-PLAN.md — PID registry, signal handlers, and process lifecycle management
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Safety Infrastructure | 1/2 | In Progress|  |
+| 1. Safety Infrastructure | 2/2 | Complete   | 2026-03-04 |
 | 2. Dependency Analysis | 0/? | Not started | - |
 | 3. Parallel Execution Engine | 0/? | Not started | - |
 | 4. Quality Verification Loop | 0/? | Not started | - |

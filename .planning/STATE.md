@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Completed 01-safety-infrastructure 01-01-PLAN.md
-last_updated: "2026-03-04T02:21:48.059Z"
-last_activity: 2026-03-03 — Roadmap created
+status: in-progress
+stopped_at: Completed 01-safety-infrastructure 01-02-PLAN.md
+last_updated: "2026-03-04T02:31:46Z"
+last_activity: 2026-03-04 — Completed Plan 01-02 (PID registry and process cleanup)
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 5
 ---
 
 # Project State
@@ -26,31 +26,32 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 1 of 6 (Safety Infrastructure)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-03 — Roadmap created
+Plan: 2 of 2 completed in Phase 1
+Status: Phase 1 complete — ready for next phase
+Last activity: 2026-03-04 — Completed Plan 01-02 (PID registry and process cleanup)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [░░░░░░░░░░] 5%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 2
+- Average duration: ~9 min/plan
+- Total execution time: ~0.3 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-safety-infrastructure | 2 | ~18 min | ~9 min |
 
 **Recent Trend:**
-- Last 5 plans: —
-- Trend: —
+- Last 5 plans: 01-01 (7 min), 01-02 (9 min)
+- Trend: Stable
 
 *Updated after each plan completion*
-| Phase 01-safety-infrastructure P01 | 7 | 2 tasks | 7 files |
+| Phase 01-safety-infrastructure P01 | 7 min | 2 tasks | 7 files |
+| Phase 01-safety-infrastructure P02 | 9 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - [Phase 01-safety-infrastructure]: proper-lockfile chosen for file locking with stale:10000ms and retries:5 to auto-release locks from crashed processes
 - [Phase 01-safety-infrastructure]: saveState retained as internal helper; saveStateLocked is the public API for all callers
 - [Phase 01-safety-infrastructure]: runStuckDetection and updateParentAfterRevision made async to propagate saveStateLocked requirement
+- [Phase 01-safety-infrastructure P02]: Use synchronous fs for PID registry (one write per spawn, parent process only, no concurrency risk)
+- [Phase 01-safety-infrastructure P02]: Safety info in `william status` placed before revisions section — active operational info
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T02:21:48.057Z
-Stopped at: Completed 01-safety-infrastructure 01-01-PLAN.md
+Last session: 2026-03-04T02:31:46Z
+Stopped at: Completed 01-safety-infrastructure 01-02-PLAN.md
 Resume file: None
