@@ -187,17 +187,20 @@ function installWorktreeDeps(worktreePath: string, workspaceDir: string): void {
 }
 
 /**
- * Load project config from the target directory and run each setupCommands
+ * Load project config from the target directory and run each setup command
  * entry sequentially in the worktree. Failures log a warning but do not abort.
+ * Reads from `git.worktreeSetupCommands`, falling back to legacy `setupCommands`.
  */
 export function runSetupCommands(
   targetDir: string,
   worktreePath: string,
 ): void {
   const config = loadProjectConfig(targetDir);
-  if (!config?.setupCommands?.length) return;
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy fallback
+  const commands = config?.git?.worktreeSetupCommands ?? config?.setupCommands;
+  if (!commands?.length) return;
 
-  for (const cmd of config.setupCommands) {
+  for (const cmd of commands) {
     console.log(`[william] Running setup: ${cmd}`);
     const result = spawnSync(cmd, {
       shell: true,

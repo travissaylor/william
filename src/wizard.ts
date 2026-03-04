@@ -32,8 +32,10 @@ export function buildPrdWizardResult(prdPath: string): WizardResult {
   const config = loadProjectConfig(cwd);
   const workspaceName = path.basename(resolved, ".md");
   const projectName = config?.projectName ?? path.basename(cwd);
-  const branchName = config?.branchPrefix
-    ? `${config.branchPrefix}${workspaceName}`
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy fallback
+  const branchPrefix = config?.git?.branchPrefix ?? config?.branchPrefix;
+  const branchName = branchPrefix
+    ? `${branchPrefix}${workspaceName}`
     : workspaceName;
 
   return {
@@ -109,12 +111,16 @@ export async function runNewWizard(): Promise<WizardResult> {
     });
   }
 
-  const defaultBranch = config?.branchPrefix
-    ? `${config.branchPrefix}${workspaceName}`
+  /* eslint-disable @typescript-eslint/no-deprecated -- legacy fallback */
+  const branchPrefixResolved =
+    config?.git?.branchPrefix ?? config?.branchPrefix;
+  /* eslint-enable @typescript-eslint/no-deprecated */
+  const defaultBranch = branchPrefixResolved
+    ? `${branchPrefixResolved}${workspaceName}`
     : workspaceName;
 
   let branchName: string;
-  if (config?.skipDefaults && config.branchPrefix) {
+  if (config?.skipDefaults && branchPrefixResolved) {
     branchName = defaultBranch;
   } else {
     branchName = await input({

@@ -29,6 +29,9 @@ describe("runSetupCommands", () => {
       stdout: Buffer.from(""),
       stderr: Buffer.from(""),
     });
+    // Suppress deprecation warnings from legacy config normalization
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
