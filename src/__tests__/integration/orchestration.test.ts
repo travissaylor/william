@@ -500,6 +500,152 @@ function stuckToolLoopFixture(): NdjsonFixtureConfig {
   };
 }
 
+describe("Orchestration: error handling — adapter spawn failure and non-zero exit", () => {
+  let ws: TestWorkspaceResult;
+
+  afterEach(() => {
+    ws.cleanup();
+  });
+
+  it("non-zero exit code increments attempts but does not mark story complete", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    // Fixture: exits with code 1, has stderr output, no STORY_COMPLETE marker
+    const errorFixture: NdjsonFixtureConfig = {
+      messages: [
+        { role: "system" },
+        {
+          role: "assistant",
+          content: "Starting work on the story...",
+        },
+      ],
+      exitCode: 1,
+      stderrOutput: "Error: Claude process crashed unexpectedly\n",
+      cost: 0.01,
+      tokens: { input: 500, output: 100 },
+      duration: 2000,
+    };
+
+    const adapter = new MockAdapter([errorFixture]);
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 1 },
+      emitter,
+    );
+
+    // Verify attempts incremented but story not complete
+    const state = loadState(ws.statePath);
+    expect(state.stories["US-001"].attempts).toBe(1);
+    expect(state.stories["US-001"].passes).toBe(false);
+    expect(state.stories["US-001"].completedAt).toBeUndefined();
+
+    // Verify state.json is valid JSON (not corrupted)
+    const rawState = fs.readFileSync(ws.statePath, "utf-8");
+    expect(() => JSON.parse(rawState) as unknown).not.toThrow();
+  });
+
+  it("malformed stdout (non-JSON) is handled gracefully without corrupting state", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    // Fixture: raw non-JSON data on stdout
+    const malformedFixture: NdjsonFixtureConfig = {
+      messages: [],
+      rawStdout:
+        "This is not JSON at all\nNeither is this line\nGarbage data\n",
+      exitCode: 0,
+      cost: 0,
+      tokens: { input: 0, output: 0 },
+      duration: 0,
+    };
+
+    const adapter = new MockAdapter([malformedFixture]);
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 1 },
+      emitter,
+    );
+
+    // Verify state is still valid and story not marked complete
+    const state = loadState(ws.statePath);
+    expect(state.stories["US-001"].attempts).toBe(1);
+    expect(state.stories["US-001"].passes).toBe(false);
+
+    // Verify state.json is valid JSON (not corrupted)
+    const rawState = fs.readFileSync(ws.statePath, "utf-8");
+    expect(() => JSON.parse(rawState) as unknown).not.toThrow();
+  });
+
+  it("runner continues to next iteration after non-zero exit", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    // First call: error exit, second call: success
+    const errorFixture: NdjsonFixtureConfig = {
+      messages: [
+        { role: "system" },
+        { role: "assistant", content: "Crashing..." },
+      ],
+      exitCode: 1,
+      stderrOutput: "Fatal error\n",
+    };
+
+    const adapter = new MockAdapter([
+      errorFixture,
+      storyCompleteFixture("ALL_COMPLETE"),
+    ]);
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 5 },
+      emitter,
+    );
+
+    // Verify adapter was called twice (error + success)
+    expect(adapter.getSpawnCalls()).toHaveLength(2);
+
+    // Verify story eventually completed
+    const state = loadState(ws.statePath);
+    expect(state.stories["US-001"].passes).toBe(true);
+  });
+
+  it("runner continues to next iteration after malformed stdout", async () => {
+    ws = createTestWorkspace({ prdText: SINGLE_STORY_PRD });
+
+    const malformedFixture: NdjsonFixtureConfig = {
+      messages: [],
+      rawStdout: "NOT VALID JSON\n",
+      exitCode: 0,
+    };
+
+    const adapter = new MockAdapter([
+      malformedFixture,
+      storyCompleteFixture("ALL_COMPLETE"),
+    ]);
+    const emitter = new TuiEmitter();
+
+    await runWorkspace(
+      "test-workspace",
+      ws.workspaceDir,
+      { adapter, sleepMs: 0, maxIterations: 5 },
+      emitter,
+    );
+
+    // Verify adapter was called twice (malformed + success)
+    expect(adapter.getSpawnCalls()).toHaveLength(2);
+
+    // Verify story eventually completed
+    const state = loadState(ws.statePath);
+    expect(state.stories["US-001"].passes).toBe(true);
+  });
+});
+
 describe("Orchestration: stuck detection triggers hint and pause", () => {
   let ws: TestWorkspaceResult;
 

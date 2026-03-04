@@ -21,6 +21,8 @@ export interface NdjsonFixtureConfig {
   resultSubtype?: StreamResultMessage["subtype"];
   exitCode?: number;
   stderrOutput?: string;
+  /** If set, bypass buildNdjsonFixture and send this raw data on stdout. */
+  rawStdout?: string;
 }
 
 export type FixtureMessage =
@@ -213,9 +215,9 @@ export class MockAdapter implements ToolAdapter {
       );
     }
 
-    const ndjsonData = buildNdjsonFixture(fixture);
+    const stdoutData = fixture.rawStdout ?? buildNdjsonFixture(fixture);
     return createFakeChildProcess(
-      ndjsonData,
+      stdoutData,
       fixture.exitCode ?? 0,
       fixture.stderrOutput,
     );
