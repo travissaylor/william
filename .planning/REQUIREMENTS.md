@@ -9,7 +9,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Safety Infrastructure
 
-- [ ] **SAFE-01**: Concurrent state.json writes are protected by file locking to prevent data loss during parallel execution
+- [x] **SAFE-01**: Concurrent state.json writes are protected by file locking to prevent data loss during parallel execution
 - [ ] **SAFE-02**: All spawned Claude processes are killed via SIGTERM when William exits (crash, Ctrl+C, or normal exit)
 
 ### Planning & Dependencies
@@ -82,7 +82,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SAFE-01 | Phase 1 | Pending |
+| SAFE-01 | Phase 1 | Complete |
 | SAFE-02 | Phase 1 | Pending |
 | PLAN-01 | Phase 2 | Pending |
 | PLAN-02 | Phase 2 | Pending |
