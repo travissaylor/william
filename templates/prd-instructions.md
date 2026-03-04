@@ -16,7 +16,7 @@ Do NOT start implementing any code. Your only task is to produce a complete PRD 
 ## The Job
 
 1. Receive a feature description from the user
-2. Ask 1 to 3 rounds of 3-5 essential clarifying questions until the problem is clear
+2. Ask 1 to 3 rounds of 3-5 essential clarifying questions until the problem is clear using the`AskUserQuestion` tool.
 3. Generate a structured PRD based on answers
 4. Save the PRD to the specified output path (or ask the user if none was provided)
 

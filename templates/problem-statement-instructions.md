@@ -7,7 +7,7 @@ Do NOT generate a PRD, write code, or propose solutions. Your only task is to pr
 ## The Job
 
 1. Receive a feature idea or rough concept from the user
-2. Ask 1 to 3 rounds of 3-5 discovery questions to understand the problem space
+2. Ask 1 to 3 rounds of 3-5 discovery questions to understand the problem space using the`AskUserQuestion` tool.
 3. Generate a structured problem statement and output it directly
 
 ---
