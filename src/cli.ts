@@ -558,7 +558,7 @@ program
 
         if (allComplete) {
           const itemCount = Object.keys(finalRevisionState.stories).length;
-          updateParentAfterRevision(
+          await updateParentAfterRevision(
             resolved.workspaceDir,
             revisionDir,
             revisionNumber,

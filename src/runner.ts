@@ -5,7 +5,7 @@ import type { ToolAdapter } from "./adapters/types.js";
 import type { WorkspaceState } from "./types.js";
 import {
   loadState,
-  saveState,
+  saveStateLocked,
   getCurrentStory,
   markStoryComplete,
   markStorySkipped,
@@ -152,12 +152,12 @@ function writeStuckHint(
   fs.writeFileSync(stuckHintPath, content, "utf-8");
 }
 
-function runStuckDetection(
+async function runStuckDetection(
   state: WorkspaceState,
   workspaceDir: string,
   session: StreamSession,
   isRevision: boolean,
-): StuckResult {
+): Promise<StuckResult> {
   const currentStoryId = getCurrentStory(state);
   if (currentStoryId === null) return { action: "continue" };
 
@@ -194,7 +194,7 @@ function runStuckDetection(
       currentStoryId,
       `Skipped after ${attempts} attempts with stuck hint present`,
     );
-    saveState(statePath, updatedState);
+    await saveStateLocked(statePath, updatedState);
     sendNotification(
       "William: Story Skipped",
       `Story ${currentStoryId} skipped after ${attempts} attempts.`,
@@ -441,7 +441,7 @@ export async function runWorkspace(
       );
     }
 
-    saveState(statePath, currentState);
+    await saveStateLocked(statePath, currentState);
 
     cumulativeCostUsd += session.totalCostUsd;
     cumulativeInputTokens += session.inputTokens;
@@ -481,7 +481,7 @@ export async function runWorkspace(
     }
 
     // Inline stuck detection (replaces watchdog)
-    const stuckResult = runStuckDetection(
+    const stuckResult = await runStuckDetection(
       currentState,
       workspaceDir,
       session,

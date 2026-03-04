@@ -7,7 +7,7 @@ import { parsePrd } from "./prd/parser.js";
 import {
   initStateFromPrd,
   loadState,
-  saveState,
+  saveStateLocked,
   getCurrentStory,
 } from "./prd/tracker.js";
 import { runWorkspace, WILLIAM_ROOT, type RunOpts } from "./runner.js";
@@ -387,12 +387,12 @@ export function createRevisionWorkspace(
  * After a revision workspace completes, update the parent workspace's state.json
  * with a revisions array entry recording the completed revision.
  */
-export function updateParentAfterRevision(
+export async function updateParentAfterRevision(
   parentWorkspaceDir: string,
   revisionDir: string,
   revisionNumber: number,
   itemCount: number,
-): void {
+): Promise<void> {
   const parentStatePath = path.join(parentWorkspaceDir, "state.json");
   const parentState = loadState(parentStatePath);
 
@@ -407,7 +407,7 @@ export function updateParentAfterRevision(
   revisions.push(entry);
   parentState.revisions = revisions;
 
-  saveState(parentStatePath, parentState);
+  await saveStateLocked(parentStatePath, parentState);
 }
 
 export async function startWorkspace(
