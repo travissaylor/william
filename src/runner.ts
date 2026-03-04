@@ -263,16 +263,26 @@ export async function runWorkspace(
   // Detect revision workspace and load original PRD if applicable
   const initialState = loadState(statePath);
 
-  // Validate worktree exists before entering the iteration loop
-  if (!initialState.worktreePath) {
-    throw new Error(
-      `Workspace "${workspaceName}" was created before worktree support. Create a new workspace with "william new".`,
-    );
-  }
-  if (!fs.existsSync(initialState.worktreePath)) {
-    throw new Error(
-      `Worktree not found at ${initialState.worktreePath}. The worktree may have been manually deleted. Create a new workspace with "william new".`,
-    );
+  // Validate working directory exists before entering the iteration loop
+  if (initialState.gitWorkflow === "branch") {
+    // Branch mode: agent runs in the target repo directory
+    if (!fs.existsSync(initialState.targetDir)) {
+      throw new Error(
+        `Target directory not found at ${initialState.targetDir}. The repository may have been moved or deleted.`,
+      );
+    }
+  } else {
+    // Worktree mode: agent runs in the worktree directory
+    if (!initialState.worktreePath) {
+      throw new Error(
+        `Workspace "${workspaceName}" was created before worktree support. Create a new workspace with "william new".`,
+      );
+    }
+    if (!fs.existsSync(initialState.worktreePath)) {
+      throw new Error(
+        `Worktree not found at ${initialState.worktreePath}. The worktree may have been manually deleted. Create a new workspace with "william new".`,
+      );
+    }
   }
 
   const isRevision = !!initialState.parentWorkspace;
