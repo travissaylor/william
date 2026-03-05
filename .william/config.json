@@ -1,3 +1,6 @@
 {
-  "projectName": "william"
+  "projectName": "william",
+  "git": {
+    "workflow": "branch"
+  }
 }
