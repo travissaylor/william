@@ -8,6 +8,15 @@ import { spawnCapture } from "./adapters/claude.js";
 import { renderMarkdown } from "./ui/render-markdown.js";
 import type { WorkspaceState } from "./types.js";
 
+/**
+ * Return the git working directory for a workspace.
+ * Worktree-mode workspaces use their dedicated worktree path;
+ * branch-mode workspaces use the original target directory.
+ */
+export function getWorkingDir(state: WorkspaceState): string {
+  return state.worktreePath ?? state.targetDir;
+}
+
 export interface PrOptions {
   draft?: boolean;
   dryRun?: boolean;
@@ -144,10 +153,7 @@ export async function generatePrDescription(
   state: WorkspaceState,
   spinner?: ReturnType<typeof ora>,
 ): Promise<PrDescription> {
-  if (!state.worktreePath) {
-    throw new Error("Workspace has no worktree path");
-  }
-  const worktreePath = state.worktreePath;
+  const workingDir = getWorkingDir(state);
   const branchName = state.branchName;
 
   // Load PRD content
@@ -156,8 +162,8 @@ export async function generatePrDescription(
     : "(PRD file not found)";
 
   // Gather git context
-  const gitDiff = getGitDiff(branchName, worktreePath);
-  const gitLog = getGitLog(branchName, worktreePath);
+  const gitDiff = getGitDiff(branchName, workingDir);
+  const gitLog = getGitLog(branchName, workingDir);
   const storyStatus = formatStoryStatus(state);
 
   // Build prompt from template
@@ -189,7 +195,7 @@ export async function generatePrDescription(
   };
 
   const { exitCode, output } = await spawnCapture(prompt, {
-    cwd: worktreePath,
+    cwd: workingDir,
     onText,
   });
 
@@ -319,15 +325,11 @@ export async function prCommand(
   const statePath = `${resolved.workspaceDir}/state.json`;
   const state = loadState(statePath);
 
-  if (!state.worktreePath) {
-    throw new Error(
-      `Workspace "${workspaceName}" has no worktree path. Legacy workspaces without worktrees are not supported by the pr command.`,
-    );
-  }
+  const workingDir = getWorkingDir(state);
 
-  if (!fs.existsSync(state.worktreePath)) {
+  if (!fs.existsSync(workingDir)) {
     throw new Error(
-      `Worktree directory does not exist: ${state.worktreePath}\nThe worktree may have been removed. Re-create the workspace with: william new`,
+      `Working directory does not exist: ${workingDir}\nThe directory may have been removed. Re-create the workspace with: william new`,
     );
   }
 
@@ -358,11 +360,11 @@ export async function prCommand(
 
   // Phase 2: Push branch
   const pushSpinner = ora("Pushing branch...").start();
-  pushBranch(state.branchName, state.worktreePath);
+  pushBranch(state.branchName, workingDir);
   pushSpinner.succeed("Branch pushed");
 
   // Phase 3: Check for existing PR
-  const existingPr = findExistingPr(state.branchName, state.worktreePath);
+  const existingPr = findExistingPr(state.branchName, workingDir);
 
   // Phase 4: Create or update the GitHub PR
   const prSpinner = ora(
@@ -370,14 +372,9 @@ export async function prCommand(
       ? `Updating pull request #${existingPr.number}...`
       : "Creating pull request...",
   ).start();
-  const prUrl = createOrUpdatePr(
-    existingPr,
-    prDescription,
-    state.worktreePath,
-    {
-      draft: options.draft,
-    },
-  );
+  const prUrl = createOrUpdatePr(existingPr, prDescription, workingDir, {
+    draft: options.draft,
+  });
   prSpinner.succeed(
     existingPr
       ? `Pull request #${existingPr.number} updated`
