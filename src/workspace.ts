@@ -376,18 +376,22 @@ export function createRevisionWorkspace(
 
   const parsedPrd = parsePrd(prdContent);
 
+  const parentGitWorkflow = parentState.gitWorkflow ?? "worktree";
+
   const state = initStateFromPrd(parsedPrd, {
     workspace: `${parentState.workspace}/revision-${revisionNumber}`,
     project: parentState.project,
     targetDir: parentState.targetDir,
     branchName: parentState.branchName,
     sourceFile: path.join(revisionDir, "prd.md"),
-    worktreePath: parentState.worktreePath,
+    worktreePath:
+      parentGitWorkflow === "branch" ? undefined : parentState.worktreePath,
   });
 
   // Add revision-specific fields
   state.parentWorkspace = parentWorkspaceDir;
   state.revisionNumber = revisionNumber;
+  state.gitWorkflow = parentGitWorkflow;
 
   fs.mkdirSync(path.join(revisionDir, "logs"), { recursive: true });
   fs.writeFileSync(
