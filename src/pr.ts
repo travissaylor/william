@@ -333,6 +333,35 @@ export async function prCommand(
     );
   }
 
+  // In branch mode, auto-checkout the workspace branch if needed
+  if (!state.worktreePath) {
+    const currentBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: workingDir,
+      stdio: "pipe",
+    })
+      .toString()
+      .trim();
+
+    if (currentBranch !== state.branchName) {
+      try {
+        execSync(`git checkout ${state.branchName}`, {
+          cwd: workingDir,
+          stdio: "pipe",
+        });
+      } catch (err) {
+        const stderr =
+          err instanceof Error && "stderr" in err
+            ? String((err as NodeJS.ErrnoException & { stderr: Buffer }).stderr)
+            : "";
+        const message =
+          stderr.trim() || (err instanceof Error ? err.message : String(err));
+        throw new Error(
+          `Failed to checkout branch "${state.branchName}": ${message}\nPlease commit or stash your changes first.`,
+        );
+      }
+    }
+  }
+
   // Warn on incomplete stories with yellow coloring
   const incompleteStories = Object.entries(state.stories)
     .filter(([, story]) => story.passes !== true)
