@@ -58,6 +58,12 @@ describe("prCommand — branch-mode auto-checkout", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "william-pr-test-"));
     vi.clearAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => {
+      // suppress output
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {
+      // suppress output
+    });
 
     resolveWorkspaceMock.mockReturnValue({
       workspaceDir: tmpDir,
