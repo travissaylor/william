@@ -90,6 +90,9 @@ describe("prCommand — branch-mode auto-checkout", () => {
       if (cmd.includes("rev-parse --abbrev-ref HEAD")) {
         return Buffer.from("main\n");
       }
+      if (cmd.includes("git status --porcelain")) {
+        return Buffer.from("");
+      }
       if (cmd.includes("git checkout feature/test")) {
         return Buffer.from("");
       }
@@ -195,6 +198,9 @@ describe("prCommand — branch-mode auto-checkout", () => {
       if (cmd.includes("rev-parse --abbrev-ref HEAD")) {
         return Buffer.from("main\n");
       }
+      if (cmd.includes("git status --porcelain")) {
+        return Buffer.from("");
+      }
       if (cmd.includes("git checkout")) {
         const err = new Error("checkout failed") as Error & {
           stderr: Buffer;
@@ -208,7 +214,7 @@ describe("prCommand — branch-mode auto-checkout", () => {
     }) as typeof childProcess.execSync);
 
     await expect(prCommand("test-workspace", { dryRun: true })).rejects.toThrow(
-      /commit or stash your changes first/,
+      /Failed to checkout branch/,
     );
   });
 });
