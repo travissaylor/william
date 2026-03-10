@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 
 /**
  * Ensures the working directory is on the specified branch.
@@ -31,7 +31,7 @@ export function ensureBranchCheckout(branchName: string, cwd: string): void {
   }
 
   try {
-    execSync(`git checkout ${branchName}`, { cwd, stdio: "pipe" });
+    execFileSync("git", ["checkout", branchName], { cwd, stdio: "pipe" });
   } catch (err) {
     const stderr =
       err instanceof Error && "stderr" in err

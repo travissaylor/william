@@ -9,7 +9,7 @@ import type { WorkspaceState } from "./types.js";
 vi.mock("child_process", async () => {
   const actual =
     await vi.importActual<typeof import("child_process")>("child_process");
-  return { ...actual, execSync: vi.fn() };
+  return { ...actual, execSync: vi.fn(), execFileSync: vi.fn() };
 });
 
 // Mock workspace resolution and state loading
@@ -35,6 +35,7 @@ import { loadState } from "./prd/tracker.js";
 import { prCommand, getWorkingDir } from "./pr.js";
 
 const execSyncMock = vi.mocked(childProcess.execSync);
+const execFileSyncMock = vi.mocked(childProcess.execFileSync);
 const resolveWorkspaceMock = vi.mocked(resolveWorkspace);
 const loadStateMock = vi.mocked(loadState);
 
@@ -99,11 +100,9 @@ describe("prCommand — branch-mode auto-checkout", () => {
       if (cmd.includes("git status --porcelain")) {
         return Buffer.from("");
       }
-      if (cmd.includes("git checkout feature/test")) {
-        return Buffer.from("");
-      }
       throw new Error(`Unexpected command: ${cmd}`);
     }) as typeof childProcess.execSync);
+    execFileSyncMock.mockReturnValue(Buffer.from(""));
 
     try {
       await prCommand("test-workspace", { dryRun: true });
@@ -111,8 +110,9 @@ describe("prCommand — branch-mode auto-checkout", () => {
       // Expected — generatePrDescription will fail due to mocks
     }
 
-    expect(execSyncMock).toHaveBeenCalledWith(
-      "git checkout feature/test",
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      "git",
+      ["checkout", "feature/test"],
       expect.objectContaining({ cwd: tmpDir }),
     );
   });
@@ -207,17 +207,17 @@ describe("prCommand — branch-mode auto-checkout", () => {
       if (cmd.includes("git status --porcelain")) {
         return Buffer.from("");
       }
-      if (cmd.includes("git checkout")) {
-        const err = new Error("checkout failed") as Error & {
-          stderr: Buffer;
-        };
-        err.stderr = Buffer.from(
-          "error: Your local changes to the following files would be overwritten by checkout",
-        );
-        throw err;
-      }
       throw new Error(`Unexpected command: ${cmd}`);
     }) as typeof childProcess.execSync);
+    execFileSyncMock.mockImplementation(() => {
+      const err = new Error("checkout failed") as Error & {
+        stderr: Buffer;
+      };
+      err.stderr = Buffer.from(
+        "error: Your local changes to the following files would be overwritten by checkout",
+      );
+      throw err;
+    });
 
     await expect(prCommand("test-workspace", { dryRun: true })).rejects.toThrow(
       /Failed to checkout branch/,

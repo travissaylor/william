@@ -5,12 +5,13 @@ import * as childProcess from "child_process";
 vi.mock("child_process", async () => {
   const actual =
     await vi.importActual<typeof import("child_process")>("child_process");
-  return { ...actual, execSync: vi.fn() };
+  return { ...actual, execSync: vi.fn(), execFileSync: vi.fn() };
 });
 
 import { ensureBranchCheckout } from "./git.js";
 
 const execSyncMock = vi.mocked(childProcess.execSync);
+const execFileSyncMock = vi.mocked(childProcess.execFileSync);
 
 describe("ensureBranchCheckout", () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
@@ -33,16 +34,15 @@ describe("ensureBranchCheckout", () => {
       if (cmd.includes("git status --porcelain")) {
         return Buffer.from("");
       }
-      if (cmd.includes("git checkout feature/my-branch")) {
-        return Buffer.from("");
-      }
       throw new Error(`Unexpected command: ${cmd}`);
     }) as typeof childProcess.execSync);
+    execFileSyncMock.mockReturnValue(Buffer.from(""));
 
     ensureBranchCheckout("feature/my-branch", "/projects/app");
 
-    expect(execSyncMock).toHaveBeenCalledWith(
-      "git checkout feature/my-branch",
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      "git",
+      ["checkout", "feature/my-branch"],
       expect.objectContaining({ cwd: "/projects/app" }),
     );
     expect(consoleSpy).toHaveBeenCalledWith(
@@ -64,12 +64,12 @@ describe("ensureBranchCheckout", () => {
         callOrder.push("stash");
         return Buffer.from("");
       }
-      if (cmd.includes("git checkout feature/dirty")) {
-        callOrder.push("checkout");
-        return Buffer.from("");
-      }
       throw new Error(`Unexpected command: ${cmd}`);
     }) as typeof childProcess.execSync);
+    execFileSyncMock.mockImplementation(() => {
+      callOrder.push("checkout");
+      return Buffer.from("");
+    });
 
     ensureBranchCheckout("feature/dirty", "/projects/app");
 
@@ -108,17 +108,17 @@ describe("ensureBranchCheckout", () => {
       if (cmd.includes("git status --porcelain")) {
         return Buffer.from("");
       }
-      if (cmd.includes("git checkout")) {
-        const err = new Error("checkout failed") as Error & {
-          stderr: Buffer;
-        };
-        err.stderr = Buffer.from(
-          "error: pathspec 'nonexistent-branch' did not match any file(s) known to git",
-        );
-        throw err;
-      }
       throw new Error(`Unexpected command: ${cmd}`);
     }) as typeof childProcess.execSync);
+    execFileSyncMock.mockImplementation(() => {
+      const err = new Error("checkout failed") as Error & {
+        stderr: Buffer;
+      };
+      err.stderr = Buffer.from(
+        "error: pathspec 'nonexistent-branch' did not match any file(s) known to git",
+      );
+      throw err;
+    });
 
     expect(() => {
       ensureBranchCheckout("nonexistent-branch", "/projects/app");
@@ -133,11 +133,9 @@ describe("ensureBranchCheckout", () => {
       if (cmd.includes("git status --porcelain")) {
         return Buffer.from("");
       }
-      if (cmd.includes("git checkout")) {
-        return Buffer.from("");
-      }
       throw new Error(`Unexpected command: ${cmd}`);
     }) as typeof childProcess.execSync);
+    execFileSyncMock.mockReturnValue(Buffer.from(""));
 
     ensureBranchCheckout("feature/clean", "/projects/app");
 
@@ -145,5 +143,29 @@ describe("ensureBranchCheckout", () => {
       ([cmd]) => cmd === "git stash",
     );
     expect(stashCalls).toHaveLength(0);
+  });
+
+  it("does not execute shell metacharacters in branch name", () => {
+    execSyncMock.mockImplementation(((cmd: string) => {
+      if (cmd.includes("rev-parse --abbrev-ref HEAD")) {
+        return Buffer.from("main\n");
+      }
+      if (cmd.includes("git status --porcelain")) {
+        return Buffer.from("");
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    }) as typeof childProcess.execSync);
+    execFileSyncMock.mockReturnValue(Buffer.from(""));
+
+    const maliciousBranch = "feat; rm -rf /";
+    ensureBranchCheckout(maliciousBranch, "/projects/app");
+
+    // Verify execFileSync was called with the branch name as a separate argument,
+    // not interpolated into a shell string
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      "git",
+      ["checkout", maliciousBranch],
+      expect.objectContaining({ cwd: "/projects/app" }),
+    );
   });
 });
