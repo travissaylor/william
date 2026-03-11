@@ -30,6 +30,15 @@ vi.mock("ora", () => ({
   }),
 }));
 
+// Mock claude adapter to prevent spawning real subprocess in CI
+vi.mock("./adapters/claude.js", () => ({
+  spawnCapture: vi.fn().mockResolvedValue({
+    exitCode: 0,
+    output: JSON.stringify({ title: "Test PR", body: "Test body" }),
+    sessionId: null,
+  }),
+}));
+
 import { resolveWorkspace } from "./workspace.js";
 import { loadState } from "./prd/tracker.js";
 import { prCommand, getWorkingDir } from "./pr.js";
