@@ -6,7 +6,17 @@ import { loadState } from "./prd/tracker.js";
 import { resolveTemplatePath } from "./paths.js";
 import { spawnCapture } from "./adapters/claude.js";
 import { renderMarkdown } from "./ui/render-markdown.js";
+import { ensureBranchCheckout } from "./git.js";
 import type { WorkspaceState } from "./types.js";
+
+/**
+ * Return the git working directory for a workspace.
+ * Worktree-mode workspaces use their dedicated worktree path;
+ * branch-mode workspaces use the original target directory.
+ */
+export function getWorkingDir(state: WorkspaceState): string {
+  return state.worktreePath ?? state.targetDir;
+}
 
 export interface PrOptions {
   draft?: boolean;
@@ -16,10 +26,10 @@ export interface PrOptions {
 /**
  * Check whether the current branch has an upstream (remote tracking) branch configured.
  */
-function hasUpstream(worktreePath: string): boolean {
+function hasUpstream(cwd: string): boolean {
   try {
     execSync("git rev-parse --abbrev-ref @{u}", {
-      cwd: worktreePath,
+      cwd,
       stdio: "pipe",
     });
     return true;
@@ -32,13 +42,13 @@ function hasUpstream(worktreePath: string): boolean {
  * Push the workspace branch to the remote.
  * Uses `git push -u origin <branch>` on first push, `git push` thereafter.
  */
-export function pushBranch(branchName: string, worktreePath: string): void {
-  const alreadyPushed = hasUpstream(worktreePath);
+export function pushBranch(branchName: string, cwd: string): void {
+  const alreadyPushed = hasUpstream(cwd);
 
   const cmd = alreadyPushed ? "git push" : `git push -u origin ${branchName}`;
 
   try {
-    execSync(cmd, { cwd: worktreePath, stdio: "pipe" });
+    execSync(cmd, { cwd, stdio: "pipe" });
   } catch (err) {
     const stderr =
       err instanceof Error && "stderr" in err
@@ -61,13 +71,13 @@ export interface ExistingPr {
  */
 export function findExistingPr(
   branchName: string,
-  worktreePath: string,
+  cwd: string,
 ): ExistingPr | null {
   let output: string;
   try {
     output = execSync(
       `gh pr list --head ${branchName} --base main --json number,url --limit 1`,
-      { cwd: worktreePath, stdio: "pipe" },
+      { cwd, stdio: "pipe" },
     ).toString();
   } catch (err) {
     const stderr =
@@ -94,10 +104,10 @@ export interface PrDescription {
 
 const MAX_DIFF_BYTES = 100_000;
 
-function getGitDiff(branchName: string, worktreePath: string): string {
+function getGitDiff(branchName: string, cwd: string): string {
   try {
     const diff = execSync(`git diff main...${branchName}`, {
-      cwd: worktreePath,
+      cwd,
       stdio: "pipe",
       maxBuffer: 10 * 1024 * 1024,
     }).toString();
@@ -113,10 +123,10 @@ function getGitDiff(branchName: string, worktreePath: string): string {
   }
 }
 
-function getGitLog(branchName: string, worktreePath: string): string {
+function getGitLog(branchName: string, cwd: string): string {
   try {
     return execSync(`git log main..${branchName} --oneline`, {
-      cwd: worktreePath,
+      cwd,
       stdio: "pipe",
     }).toString();
   } catch {
@@ -144,10 +154,7 @@ export async function generatePrDescription(
   state: WorkspaceState,
   spinner?: ReturnType<typeof ora>,
 ): Promise<PrDescription> {
-  if (!state.worktreePath) {
-    throw new Error("Workspace has no worktree path");
-  }
-  const worktreePath = state.worktreePath;
+  const workingDir = getWorkingDir(state);
   const branchName = state.branchName;
 
   // Load PRD content
@@ -156,8 +163,8 @@ export async function generatePrDescription(
     : "(PRD file not found)";
 
   // Gather git context
-  const gitDiff = getGitDiff(branchName, worktreePath);
-  const gitLog = getGitLog(branchName, worktreePath);
+  const gitDiff = getGitDiff(branchName, workingDir);
+  const gitLog = getGitLog(branchName, workingDir);
   const storyStatus = formatStoryStatus(state);
 
   // Build prompt from template
@@ -189,7 +196,7 @@ export async function generatePrDescription(
   };
 
   const { exitCode, output } = await spawnCapture(prompt, {
-    cwd: worktreePath,
+    cwd: workingDir,
     onText,
   });
 
@@ -238,7 +245,7 @@ export async function generatePrDescription(
 export function createOrUpdatePr(
   existingPr: ExistingPr | null,
   description: PrDescription,
-  worktreePath: string,
+  cwd: string,
   options?: { draft?: boolean },
 ): string {
   if (existingPr) {
@@ -246,7 +253,7 @@ export function createOrUpdatePr(
     try {
       execSync(
         `gh pr edit ${existingPr.number} --title ${shellEscape(description.title)} --body ${shellEscape(description.body)}`,
-        { cwd: worktreePath, stdio: "pipe" },
+        { cwd, stdio: "pipe" },
       );
     } catch (err) {
       const stderr =
@@ -262,7 +269,7 @@ export function createOrUpdatePr(
     if (options?.draft) {
       try {
         execSync(`gh pr ready ${existingPr.number} --undo`, {
-          cwd: worktreePath,
+          cwd,
           stdio: "pipe",
         });
       } catch (err) {
@@ -287,7 +294,7 @@ export function createOrUpdatePr(
   try {
     output = execSync(
       `gh pr create --base main --title ${shellEscape(description.title)} --body ${shellEscape(description.body)}${draftFlag}`,
-      { cwd: worktreePath, stdio: "pipe" },
+      { cwd, stdio: "pipe" },
     ).toString();
   } catch (err) {
     const stderr =
@@ -319,16 +326,17 @@ export async function prCommand(
   const statePath = `${resolved.workspaceDir}/state.json`;
   const state = loadState(statePath);
 
-  if (!state.worktreePath) {
+  const workingDir = getWorkingDir(state);
+
+  if (!fs.existsSync(workingDir)) {
     throw new Error(
-      `Workspace "${workspaceName}" has no worktree path. Legacy workspaces without worktrees are not supported by the pr command.`,
+      `Working directory does not exist: ${workingDir}\nThe directory may have been removed. Re-create the workspace with: william new`,
     );
   }
 
-  if (!fs.existsSync(state.worktreePath)) {
-    throw new Error(
-      `Worktree directory does not exist: ${state.worktreePath}\nThe worktree may have been removed. Re-create the workspace with: william new`,
-    );
+  // In branch mode, auto-checkout the workspace branch if needed
+  if (!state.worktreePath) {
+    ensureBranchCheckout(state.branchName, workingDir);
   }
 
   // Warn on incomplete stories with yellow coloring
@@ -358,11 +366,11 @@ export async function prCommand(
 
   // Phase 2: Push branch
   const pushSpinner = ora("Pushing branch...").start();
-  pushBranch(state.branchName, state.worktreePath);
+  pushBranch(state.branchName, workingDir);
   pushSpinner.succeed("Branch pushed");
 
   // Phase 3: Check for existing PR
-  const existingPr = findExistingPr(state.branchName, state.worktreePath);
+  const existingPr = findExistingPr(state.branchName, workingDir);
 
   // Phase 4: Create or update the GitHub PR
   const prSpinner = ora(
@@ -370,14 +378,9 @@ export async function prCommand(
       ? `Updating pull request #${existingPr.number}...`
       : "Creating pull request...",
   ).start();
-  const prUrl = createOrUpdatePr(
-    existingPr,
-    prDescription,
-    state.worktreePath,
-    {
-      draft: options.draft,
-    },
-  );
+  const prUrl = createOrUpdatePr(existingPr, prDescription, workingDir, {
+    draft: options.draft,
+  });
   prSpinner.succeed(
     existingPr
       ? `Pull request #${existingPr.number} updated`

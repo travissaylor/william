@@ -27,6 +27,7 @@ import {
   generateRevisionPlan,
 } from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
+import { ensureBranchCheckout } from "./git.js";
 import { resolveTemplatePath } from "./paths.js";
 import { buildPrdPrompt } from "./prd-prompt.js";
 import {
@@ -582,6 +583,11 @@ program
 
       // Register signal handlers before runWorkspace
       registerShutdownHandlers({ workspaceDir: revisionDir });
+
+      // In branch mode, ensure we're on the revision branch before running agents
+      if (revisionState.gitWorkflow === "branch" && revisionState.branchName) {
+        ensureBranchCheckout(revisionState.branchName, revisionState.targetDir);
+      }
 
       const emitter = new TuiEmitter();
       const inkApp = render(

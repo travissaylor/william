@@ -17,6 +17,7 @@ import type { WorkspaceState, RevisionEntry } from "./types.js";
 import { loadProjectConfig } from "./config.js";
 import { cleanupOrphans } from "./safety/pid-registry.js";
 import { killAllAgents } from "./safety/shutdown.js";
+import { ensureBranchCheckout } from "./git.js";
 
 export interface ResolvedWorkspace {
   workspaceDir: string;
@@ -376,18 +377,22 @@ export function createRevisionWorkspace(
 
   const parsedPrd = parsePrd(prdContent);
 
+  const parentGitWorkflow = parentState.gitWorkflow ?? "worktree";
+
   const state = initStateFromPrd(parsedPrd, {
     workspace: `${parentState.workspace}/revision-${revisionNumber}`,
     project: parentState.project,
     targetDir: parentState.targetDir,
     branchName: parentState.branchName,
     sourceFile: path.join(revisionDir, "prd.md"),
-    worktreePath: parentState.worktreePath,
+    worktreePath:
+      parentGitWorkflow === "branch" ? undefined : parentState.worktreePath,
   });
 
   // Add revision-specific fields
   state.parentWorkspace = parentWorkspaceDir;
   state.revisionNumber = revisionNumber;
+  state.gitWorkflow = parentGitWorkflow;
 
   fs.mkdirSync(path.join(revisionDir, "logs"), { recursive: true });
   fs.writeFileSync(
@@ -449,6 +454,11 @@ export async function startWorkspace(
 
   // Clean up orphaned processes from a previous crashed session
   cleanupOrphans(resolved.workspaceDir, statePath);
+
+  // In branch mode, ensure we're on the workspace branch before running agents
+  if (initialState.gitWorkflow === "branch" && initialState.branchName) {
+    ensureBranchCheckout(initialState.branchName, initialState.targetDir);
+  }
 
   // Write .running marker before starting
   const runningPath = path.join(resolved.workspaceDir, ".running");
