@@ -22,10 +22,8 @@ import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
 import { runNewWizard, buildPrdWizardResult } from "./wizard.js";
 import { runInit } from "./init.js";
 import { loadProjectConfig } from "./config.js";
-import {
-  collectRevisionProblems,
-  generateRevisionPlan,
-} from "./revision-wizard.js";
+import { confirm } from "@inquirer/prompts";
+import { buildInteractiveRevisionPrompt } from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
 import { ensureBranchCheckout } from "./git.js";
 import { resolveTemplatePath } from "./paths.js";
@@ -547,23 +545,52 @@ program
         `Starting revision for workspace "${resolved.projectName}/${resolved.workspaceName}"...`,
       );
 
-      const problems = await collectRevisionProblems();
+      const workingDir = state.worktreePath ?? state.targetDir;
+      const planPath = path.join(resolved.workspaceDir, "revision-plan.md");
 
-      console.log(
-        `\nCollected ${problems.length} problem(s). Generating revision plan...\n`,
-      );
-
-      const plan = await generateRevisionPlan({
-        problems,
+      const interactivePrompt = buildInteractiveRevisionPrompt({
         workspaceDir: resolved.workspaceDir,
         targetDir: state.targetDir,
         branchName: state.branchName,
+        planPath,
       });
 
-      if (plan === null) {
-        console.error("[william] Revision plan generation failed.");
-        process.exit(1);
-      }
+      let hasPlan = false;
+
+      do {
+        console.log("\nLaunching interactive revision planning session...\n");
+
+        const exitCode = await spawnInteractive(interactivePrompt, {
+          cwd: workingDir,
+        });
+
+        if (exitCode !== 0) {
+          console.error(
+            `[william] Claude process exited with code ${exitCode ?? "unknown"}`,
+          );
+          process.exit(1);
+        }
+
+        hasPlan = fs.existsSync(planPath);
+
+        if (!hasPlan) {
+          console.log("\n[william] No revision plan found at " + planPath);
+
+          const retry = await confirm({
+            message: "No revision plan found. Re-launch session?",
+            default: true,
+          });
+
+          if (!retry) {
+            console.log(
+              "[william] Exiting without creating a revision workspace.",
+            );
+            process.exit(0);
+          }
+        }
+      } while (!hasPlan);
+
+      const plan = fs.readFileSync(planPath, "utf-8");
 
       const { revisionDir, revisionNumber } = createRevisionWorkspace({
         parentWorkspaceDir: resolved.workspaceDir,
