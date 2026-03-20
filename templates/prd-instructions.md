@@ -7,16 +7,16 @@ Do NOT start implementing any code. Your only task is to produce a complete PRD 
 ## File-Saving Instructions
 
 - After the PRD is finalized, write it to disk using your file-writing tools (e.g. the Write tool).
-- The output path will be provided later in this prompt. If no output path is provided, ask the user where to save and suggest the default: `prds/<feature-name>.md` (kebab-case derived from the PRD title).
+- The output path will be provided later in this prompt. If no output path is provided, ask the user where to save and suggest the default: `.william/prds/<feature-name>.md` (kebab-case derived from the PRD title).
 - Create any parent directories if they do not already exist.
-- After saving, print a brief confirmation, e.g.: `PRD saved to prds/my-feature.md`
+- After saving, print a brief confirmation, e.g.: `PRD saved to .william/prds/my-feature.md`
 
 ---
 
 ## The Job
 
 1. Receive a feature description from the user
-2. Ask 1 to 3 rounds of 3-5 essential clarifying questions until the problem is clear using the`AskUserQuestion` tool.
+2. Ask as many rounds of 3-5 essential clarifying questions until the problem is clear using the`AskUserQuestion` tool.
 3. Generate a structured PRD based on answers
 4. Save the PRD to the specified output path (or ask the user if none was provided)
 
@@ -24,7 +24,7 @@ Do NOT start implementing any code. Your only task is to produce a complete PRD 
 
 ## Step 1: Clarifying Questions
 
-Ask only critical questions where the initial prompt is ambiguous. Focus on:
+Ask critical questions where the initial prompt is ambiguous or the idea is unclear. Focus on:
 
 - **Problem/Goal:** What problem does this solve?
 - **Core Functionality:** What are the key actions?
@@ -117,7 +117,7 @@ The PRD reader may be a junior developer or AI agent. Therefore:
 ## Output
 
 - **Format:** Markdown (`.md`)
-- **Location:** User given path but default to `prds/`
+- **Location:** User given path but default to `.william/prds/`
 - **Filename:** `[feature-name].md` (kebab-case)
 
 ---
@@ -230,5 +230,5 @@ Before saving the PRD:
 - [ ] User stories are small and specific
 - [ ] Functional requirements are numbered and unambiguous
 - [ ] Non-goals section defines clear boundaries
-- [ ] Save PRD to the output path (or ask user if none was specified, defaulting to `prds/[feature-name].md`)
+- [ ] Save PRD to the output path (or ask user if none was specified, defaulting to `.william/prds/[feature-name].md`)
 - [ ] Print confirmation after saving
