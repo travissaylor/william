@@ -22,6 +22,7 @@ import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
 import { runNewWizard, buildPrdWizardResult } from "./wizard.js";
 import { runInit } from "./init.js";
 import { loadProjectConfig } from "./config.js";
+import { confirm } from "@inquirer/prompts";
 import { buildInteractiveRevisionPrompt } from "./revision-wizard.js";
 import { migrateWorkspaces } from "./migrate.js";
 import { ensureBranchCheckout } from "./git.js";
@@ -554,24 +555,40 @@ program
         planPath,
       });
 
-      console.log("\nLaunching interactive revision planning session...\n");
+      let hasPlan = false;
 
-      const exitCode = await spawnInteractive(interactivePrompt, {
-        cwd: workingDir,
-      });
+      do {
+        console.log("\nLaunching interactive revision planning session...\n");
 
-      if (exitCode !== 0) {
-        console.error(
-          `[william] Claude process exited with code ${exitCode ?? "unknown"}`,
-        );
-        process.exit(1);
-      }
+        const exitCode = await spawnInteractive(interactivePrompt, {
+          cwd: workingDir,
+        });
 
-      if (!fs.existsSync(planPath)) {
-        console.log("\n[william] No revision plan found at " + planPath);
-        console.log("[william] Exiting without creating a revision workspace.");
-        process.exit(0);
-      }
+        if (exitCode !== 0) {
+          console.error(
+            `[william] Claude process exited with code ${exitCode ?? "unknown"}`,
+          );
+          process.exit(1);
+        }
+
+        hasPlan = fs.existsSync(planPath);
+
+        if (!hasPlan) {
+          console.log("\n[william] No revision plan found at " + planPath);
+
+          const retry = await confirm({
+            message: "No revision plan found. Re-launch session?",
+            default: true,
+          });
+
+          if (!retry) {
+            console.log(
+              "[william] Exiting without creating a revision workspace.",
+            );
+            process.exit(0);
+          }
+        }
+      } while (!hasPlan);
 
       const plan = fs.readFileSync(planPath, "utf-8");
 
