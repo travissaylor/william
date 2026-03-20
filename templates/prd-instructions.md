@@ -7,9 +7,9 @@ Do NOT start implementing any code. Your only task is to produce a complete PRD 
 ## File-Saving Instructions
 
 - After the PRD is finalized, write it to disk using your file-writing tools (e.g. the Write tool).
-- The output path will be provided later in this prompt. If no output path is provided, ask the user where to save and suggest the default: `prds/<feature-name>.md` (kebab-case derived from the PRD title).
+- The output path will be provided later in this prompt. If no output path is provided, ask the user where to save and suggest the default: `.william/prds/<feature-name>.md` (kebab-case derived from the PRD title).
 - Create any parent directories if they do not already exist.
-- After saving, print a brief confirmation, e.g.: `PRD saved to prds/my-feature.md`
+- After saving, print a brief confirmation, e.g.: `PRD saved to .william/prds/my-feature.md`
 
 ---
 
@@ -117,7 +117,7 @@ The PRD reader may be a junior developer or AI agent. Therefore:
 ## Output
 
 - **Format:** Markdown (`.md`)
-- **Location:** User given path but default to `prds/`
+- **Location:** User given path but default to `.william/prds/`
 - **Filename:** `[feature-name].md` (kebab-case)
 
 ---
@@ -230,5 +230,5 @@ Before saving the PRD:
 - [ ] User stories are small and specific
 - [ ] Functional requirements are numbered and unambiguous
 - [ ] Non-goals section defines clear boundaries
-- [ ] Save PRD to the output path (or ask user if none was specified, defaulting to `prds/[feature-name].md`)
+- [ ] Save PRD to the output path (or ask user if none was specified, defaulting to `.william/prds/[feature-name].md`)
 - [ ] Print confirmation after saving
