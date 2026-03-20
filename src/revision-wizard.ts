@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { replacePlaceholders } from "./template.js";
+import { resolveTemplatePath } from "./paths.js";
 
 export interface InteractiveRevisionOpts {
   workspaceDir: string;
@@ -34,12 +35,7 @@ export function buildInteractiveRevisionPrompt(
 
   const workspaceName = path.basename(workspaceDir);
 
-  const templatePath = path.join(
-    __dirname,
-    "..",
-    "templates",
-    "revision-interactive.md",
-  );
+  const templatePath = resolveTemplatePath("revision-interactive.md");
   const template = fs.readFileSync(templatePath, "utf-8");
 
   return replacePlaceholders(template, {
