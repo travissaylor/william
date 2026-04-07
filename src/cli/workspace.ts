@@ -3,21 +3,21 @@ import * as path from "path";
 import { execSync, spawnSync } from "child_process";
 import { createElement } from "react";
 import { render } from "ink";
-import { parsePrd } from "./prd/parser.js";
+import { parsePrd } from "../lib/prd/parser.js";
 import {
   initStateFromPrd,
   loadState,
   saveStateLocked,
   getCurrentStory,
-} from "./prd/tracker.js";
+} from "../lib/prd/tracker.js";
 import { runWorkspace, WILLIAM_ROOT, type RunOpts } from "./runner.js";
 import { TuiEmitter } from "./ui/events.js";
 import { App } from "./ui/App.js";
-import type { WorkspaceState, RevisionEntry } from "./types.js";
-import { loadProjectConfig } from "./config.js";
+import type { WorkspaceState, RevisionEntry } from "../lib/types.js";
+import { loadProjectConfig } from "../lib/config.js";
 import { cleanupOrphans } from "./safety/pid-registry.js";
 import { killAllAgents } from "./safety/shutdown.js";
-import { ensureBranchCheckout } from "./git.js";
+import { ensureBranchCheckout } from "../lib/git.js";
 
 export interface ResolvedWorkspace {
   workspaceDir: string;

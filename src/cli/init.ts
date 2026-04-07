@@ -5,7 +5,7 @@ import {
   loadProjectConfig,
   type ProjectConfig,
   type GitConfig,
-} from "./config.js";
+} from "../lib/config.js";
 import {
   detectShell,
   areCompletionsInstalled,

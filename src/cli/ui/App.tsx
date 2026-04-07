@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, useStdout } from "ink";
 import type { TuiEmitter, TuiEvent, DashboardData } from "./events.js";
-import type { WorkspaceState } from "../types.js";
+import type { WorkspaceState } from "../../lib/types.js";
 import { Dashboard } from "./Dashboard.js";
 import { LogArea } from "./LogArea.js";
 import type { LogEntry } from "./LogArea.js";

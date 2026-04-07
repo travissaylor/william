@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/cli.ts"],
+  entry: ["src/cli/cli.ts"],
   format: "esm",
   target: "node22",
   outDir: "dist",
@@ -31,7 +31,7 @@ export default defineConfig({
     options.jsx = "automatic";
     // Stub out react-devtools-core (optional ink dep, not installed)
     options.alias = {
-      "react-devtools-core": "./src/stubs/react-devtools-core.ts",
+      "react-devtools-core": "./src/cli/stubs/react-devtools-core.ts",
     };
   },
   // Ensure the output has the correct Node shebang (replacing the tsx one from source)

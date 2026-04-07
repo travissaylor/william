@@ -7,7 +7,7 @@ import {
   THREE_STORY_PRD,
   type TestWorkspaceResult,
 } from "./create-test-workspace.js";
-import { loadState } from "../../../prd/tracker.js";
+import { loadState } from "../../../../lib/prd/tracker.js";
 
 describe("createTestWorkspace", () => {
   const workspaces: TestWorkspaceResult[] = [];

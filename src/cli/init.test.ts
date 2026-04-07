@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import type { ProjectConfig } from "./config.js";
+import type { ProjectConfig } from "../lib/config.js";
 
 vi.mock("@inquirer/prompts", () => ({
   input: vi.fn(),

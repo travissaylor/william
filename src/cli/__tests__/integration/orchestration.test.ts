@@ -15,7 +15,7 @@ import {
 import { runWorkspace } from "../../runner.js";
 import { TuiEmitter } from "../../ui/events.js";
 import type { TuiEvent } from "../../ui/events.js";
-import { loadState } from "../../prd/tracker.js";
+import { loadState } from "../../../lib/prd/tracker.js";
 
 /**
  * Creates an NDJSON fixture config for a story that completes successfully.

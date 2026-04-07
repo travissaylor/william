@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { resolveTemplatePath } from "./paths.js";
+import { resolveTemplatePath } from "../lib/paths.js";
 
 export function buildPrdPrompt(options: {
   description?: string;

@@ -287,7 +287,7 @@ function isAlreadyInstalled(profilePath: string, sourceLine: string): boolean {
 
 // Compute WILLIAM_ROOT locally to avoid importing from runner.ts (heavy deps)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const COMPLETIONS_ROOT = path.resolve(__dirname, "..");
+const COMPLETIONS_ROOT = path.resolve(__dirname, "..", "..");
 
 interface WorkspaceInfo {
   name: string;

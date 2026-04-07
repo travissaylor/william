@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getWorkingDir } from "./pr.js";
-import type { WorkspaceState } from "./types.js";
+import type { WorkspaceState } from "../lib/types.js";
 
 function makeState(overrides: Partial<WorkspaceState> = {}): WorkspaceState {
   return {

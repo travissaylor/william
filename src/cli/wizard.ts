@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { input } from "@inquirer/prompts";
-import { loadProjectConfig } from "./config.js";
+import { loadProjectConfig } from "../lib/config.js";
 
 export interface WizardResult {
   prdFile: string;

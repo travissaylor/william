@@ -8,7 +8,7 @@ import type { LogEntry } from "../../ui/LogArea.js";
 import { StoryBanner } from "../../ui/StoryBanner.js";
 import { TuiEmitter } from "../../ui/events.js";
 import type { TuiEvent, DashboardData } from "../../ui/events.js";
-import type { WorkspaceState } from "../../types.js";
+import type { WorkspaceState } from "../../../lib/types.js";
 
 afterEach(() => {
   cleanup();

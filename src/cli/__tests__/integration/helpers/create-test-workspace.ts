@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parsePrd } from "../../../prd/parser.js";
-import { initStateFromPrd } from "../../../prd/tracker.js";
-import type { InitStateOpts } from "../../../prd/tracker.js";
+import { parsePrd } from "../../../../lib/prd/parser.js";
+import { initStateFromPrd } from "../../../../lib/prd/tracker.js";
+import type { InitStateOpts } from "../../../../lib/prd/tracker.js";
 
 export interface TestWorkspaceResult {
   workspaceDir: string;

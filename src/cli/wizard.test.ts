@@ -7,12 +7,12 @@ vi.mock("@inquirer/prompts", () => ({
   input: vi.fn(),
 }));
 
-vi.mock("./config.js", () => ({
+vi.mock("../lib/config.js", () => ({
   loadProjectConfig: vi.fn(),
 }));
 
 import { input } from "@inquirer/prompts";
-import { loadProjectConfig } from "./config.js";
+import { loadProjectConfig } from "../lib/config.js";
 import { runNewWizard, buildPrdWizardResult } from "./wizard.js";
 
 const mockInput = vi.mocked(input);

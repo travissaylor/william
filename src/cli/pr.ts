@@ -2,12 +2,12 @@ import * as fs from "fs";
 import { execSync } from "child_process";
 import ora from "ora";
 import { resolveWorkspace } from "./workspace.js";
-import { loadState } from "./prd/tracker.js";
-import { resolveTemplatePath } from "./paths.js";
+import { loadState } from "../lib/prd/tracker.js";
+import { resolveTemplatePath } from "../lib/paths.js";
 import { spawnCapture } from "./adapters/claude.js";
 import { renderMarkdown } from "./ui/render-markdown.js";
-import { ensureBranchCheckout } from "./git.js";
-import type { WorkspaceState } from "./types.js";
+import { ensureBranchCheckout } from "../lib/git.js";
+import type { WorkspaceState } from "../lib/types.js";
 
 /**
  * Return the git working directory for a workspace.

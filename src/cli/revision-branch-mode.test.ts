@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { createRevisionWorkspace } from "./workspace.js";
-import type { WorkspaceState } from "./types.js";
+import type { WorkspaceState } from "../lib/types.js";
 
 function makeParentState(
   overrides: Partial<WorkspaceState> = {},

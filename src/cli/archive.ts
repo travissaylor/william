@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { WILLIAM_ROOT } from "./runner.js";
-import { loadState } from "./prd/tracker.js";
+import { loadState } from "../lib/prd/tracker.js";
 import { resolveWorkspace } from "./workspace.js";
 
 function copyDirRecursive(src: string, dest: string): void {

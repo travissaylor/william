@@ -9,15 +9,32 @@ PRD-to-code orchestrator: parses markdown PRDs, spawns AI agents per user story,
 
 ## Key Components
 
+Code is organized into `src/lib/` (shared library) and `src/cli/` (CLI-specific):
+
+### Shared Library (`src/lib/`)
+
 | File | Role |
 |------|------|
-| `src/cli.ts` | CLI entry point — registers commands (`new`, `init`, `prd`, etc.) via Commander |
-| `src/config.ts` | Project-level config loader — reads `.william/config.json` for per-project defaults (project name, git workflow, branch prefix, PRD output path, worktree setup commands) |
-| `src/init.ts` | `william init` command — interactively scaffolds `.william/config.json` |
-| `src/wizard.ts` | Interactive wizard for `william new` — collects workspace parameters, reads project config for defaults; supports `--git-workflow` flag |
-| `src/workspace.ts` | Workspace lifecycle — create, start, stop, list, archive; supports worktree and branch git workflow modes |
-| `src/runner.ts` | Agent runner — spawns AI agents per user story, manages streaming output |
-| `src/prd-prompt.ts` | PRD generation — builds prompts and resolves output directory from project config |
+| `src/lib/config.ts` | Project-level config loader — reads `.william/config.json` for per-project defaults |
+| `src/lib/git.ts` | Git utilities — branch checkout, worktree management |
+| `src/lib/types.ts` | Shared TypeScript types (`WorkspaceState`, `StoryState`, etc.) |
+| `src/lib/paths.ts` | Template path resolution (dev vs dist mode) |
+| `src/lib/template.ts` | Template placeholder replacement |
+| `src/lib/migrate.ts` | State file migration utilities |
+| `src/lib/prd/parser.ts` | PRD markdown parser — extracts stories, metadata |
+| `src/lib/prd/tracker.ts` | State tracker — load/save `state.json` with file locking |
+| `src/lib/prd/context-builder.ts` | Builds agent context from workspace state |
+
+### CLI (`src/cli/`)
+
+| File | Role |
+|------|------|
+| `src/cli/cli.ts` | CLI entry point — registers commands (`new`, `init`, `prd`, etc.) via Commander |
+| `src/cli/wizard.ts` | Interactive wizard for `william new` — collects workspace parameters; supports `--git-workflow` flag |
+| `src/cli/init.ts` | `william init` command — interactively scaffolds `.william/config.json` |
+| `src/cli/workspace.ts` | Workspace lifecycle — create, start, stop, list, archive; supports worktree and branch modes |
+| `src/cli/runner.ts` | Agent runner — spawns AI agents per user story, manages streaming output |
+| `src/cli/prd-prompt.ts` | PRD generation — builds prompts and resolves output directory from project config |
 
 ## Git Config
 

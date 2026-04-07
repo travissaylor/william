@@ -10,7 +10,7 @@ import {
   isProcessAlive,
   cleanupOrphans,
 } from "./pid-registry.js";
-import type { WorkspaceState } from "../types.js";
+import type { WorkspaceState } from "../../lib/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import * as childProcess from "child_process";
-import type { WorkspaceState } from "./types.js";
+import type { WorkspaceState } from "../lib/types.js";
 
 // Mock child_process to intercept execSync calls
 vi.mock("child_process", async () => {
@@ -17,7 +17,7 @@ vi.mock("./workspace.js", () => ({
   resolveWorkspace: vi.fn(),
 }));
 
-vi.mock("./prd/tracker.js", () => ({
+vi.mock("../lib/prd/tracker.js", () => ({
   loadState: vi.fn(),
 }));
 
@@ -40,7 +40,7 @@ vi.mock("./adapters/claude.js", () => ({
 }));
 
 import { resolveWorkspace } from "./workspace.js";
-import { loadState } from "./prd/tracker.js";
+import { loadState } from "../lib/prd/tracker.js";
 import { prCommand, getWorkingDir } from "./pr.js";
 
 const execSyncMock = vi.mocked(childProcess.execSync);

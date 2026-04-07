@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import type { ToolAdapter } from "./adapters/types.js";
-import type { WorkspaceState } from "./types.js";
+import type { WorkspaceState } from "../lib/types.js";
 import {
   loadState,
   saveStateLocked,
@@ -10,11 +10,11 @@ import {
   markStoryComplete,
   markStorySkipped,
   incrementAttempts,
-} from "./prd/tracker.js";
+} from "../lib/prd/tracker.js";
 import { registerPid, deregisterPid } from "./safety/pid-registry.js";
-import { parsePrd } from "./prd/parser.js";
-import { buildContext } from "./prd/context-builder.js";
-import { replacePlaceholders } from "./template.js";
+import { parsePrd } from "../lib/prd/parser.js";
+import { buildContext } from "../lib/prd/context-builder.js";
+import { replacePlaceholders } from "../lib/template.js";
 import { consumeStreamOutput } from "./stream/consume.js";
 import {
   extractChainContext,
@@ -23,10 +23,10 @@ import {
 import { sendNotification } from "./notifier.js";
 import type { StreamSession } from "./stream/types.js";
 import type { TuiEmitter } from "./ui/events.js";
-import { resolveTemplatePath } from "./paths.js";
+import { resolveTemplatePath } from "../lib/paths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const WILLIAM_ROOT = path.resolve(__dirname, "..");
+export const WILLIAM_ROOT = path.resolve(__dirname, "..", "..");
 
 export interface RunOpts {
   maxIterations?: number;

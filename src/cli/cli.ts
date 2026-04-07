@@ -21,14 +21,14 @@ import { archiveWorkspace } from "./archive.js";
 import { ClaudeAdapter, spawnInteractive } from "./adapters/claude.js";
 import { runNewWizard, buildPrdWizardResult } from "./wizard.js";
 import { runInit } from "./init.js";
-import { loadProjectConfig } from "./config.js";
+import { loadProjectConfig } from "../lib/config.js";
 import {
   collectRevisionProblems,
   generateRevisionPlan,
 } from "./revision-wizard.js";
-import { migrateWorkspaces } from "./migrate.js";
-import { ensureBranchCheckout } from "./git.js";
-import { resolveTemplatePath } from "./paths.js";
+import { migrateWorkspaces } from "../lib/migrate.js";
+import { ensureBranchCheckout } from "../lib/git.js";
+import { resolveTemplatePath } from "../lib/paths.js";
 import { buildPrdPrompt } from "./prd-prompt.js";
 import {
   detectShell,
@@ -37,7 +37,7 @@ import {
   getCompletions,
   type ShellType,
 } from "./completions.js";
-import { loadState } from "./prd/tracker.js";
+import { loadState } from "../lib/prd/tracker.js";
 import { prCommand } from "./pr.js";
 import { runWorkspace } from "./runner.js";
 import { TuiEmitter } from "./ui/events.js";
@@ -65,7 +65,7 @@ export function buildProblemPrompt(options: { description?: string }): string {
 
 function readPackageVersion(): string {
   try {
-    const pkgPath = path.join(__dirname, "..", "package.json");
+    const pkgPath = path.join(__dirname, "..", "..", "package.json");
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
       version: string;
     };

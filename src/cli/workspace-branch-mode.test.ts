@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import type { WorkspaceState } from "./types.js";
+import type { WorkspaceState } from "../lib/types.js";
 
 let tmpRoot: string;
 
 // Mock git.js to spy on ensureBranchCheckout
-vi.mock("./git.js", () => ({
+vi.mock("../lib/git.js", () => ({
   ensureBranchCheckout: vi.fn(),
 }));
 
@@ -47,7 +47,7 @@ vi.mock("./safety/shutdown.js", () => ({
   killAllAgents: vi.fn(),
 }));
 
-import { ensureBranchCheckout } from "./git.js";
+import { ensureBranchCheckout } from "../lib/git.js";
 import { startWorkspace, createRevisionWorkspace } from "./workspace.js";
 
 const ensureBranchCheckoutMock = vi.mocked(ensureBranchCheckout);

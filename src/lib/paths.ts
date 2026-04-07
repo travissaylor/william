@@ -6,10 +6,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Resolves a template file path, checking `__dirname/templates/` first (dist mode),
- * then falling back to `__dirname/../templates/` (dev mode with tsx).
+ * then falling back to the repo root `templates/` directory (dev mode with tsx).
  */
 export function resolveTemplatePath(filename: string): string {
   const bundled = path.join(__dirname, "templates", filename);
   if (fs.existsSync(bundled)) return bundled;
-  return path.join(__dirname, "..", "templates", filename);
+  // In dev mode __dirname is src/lib/, so go up two levels to reach the repo root
+  return path.join(__dirname, "..", "..", "templates", filename);
 }

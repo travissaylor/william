@@ -4,8 +4,8 @@ import { execSync } from "child_process";
 import { input, confirm } from "@inquirer/prompts";
 import ora from "ora";
 import { spawnCapture } from "./adapters/claude.js";
-import { replacePlaceholders } from "./template.js";
-import { resolveTemplatePath } from "./paths.js";
+import { replacePlaceholders } from "../lib/template.js";
+import { resolveTemplatePath } from "../lib/paths.js";
 import { renderMarkdown } from "./ui/render-markdown.js";
 
 export async function collectRevisionProblems(): Promise<string[]> {

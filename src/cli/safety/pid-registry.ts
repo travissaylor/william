@@ -1,6 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
-import { loadState, saveState, markStoryInterrupted } from "../prd/tracker.js";
+import {
+  loadState,
+  saveState,
+  markStoryInterrupted,
+} from "../../lib/prd/tracker.js";
 
 export interface PidEntry {
   pid: number;
