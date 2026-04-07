@@ -2,6 +2,7 @@ import * as fs from "fs";
 import lockfile from "proper-lockfile";
 import { WorkspaceState, StoryState } from "../types.js";
 import { ParsedPrd } from "./parser.js";
+import { computeWaves } from "./wave-planner.js";
 
 export interface InitStateOpts {
   workspace: string;
@@ -137,6 +138,10 @@ export function initStateFromPrd(
     stories[story.id] = { passes: false, attempts: 0 };
   }
   const firstStoryId = parsedPrd.stories[0]?.id ?? null;
+
+  const hasDependencies = parsedPrd.stories.some((s) => s.dependsOn.length > 0);
+  const waves = hasDependencies ? computeWaves(parsedPrd.stories) : undefined;
+
   return {
     workspace: opts.workspace,
     project: opts.project,
@@ -147,5 +152,6 @@ export function initStateFromPrd(
     stories,
     currentStory: firstStoryId,
     startedAt: new Date().toISOString(),
+    ...(waves ? { waves, currentWave: 0, waveResults: [] } : {}),
   };
 }
