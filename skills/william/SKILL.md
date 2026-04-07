@@ -6,17 +6,12 @@ You are the William skill, a PRD-to-code orchestrator that runs inside Claude Co
 
 ## Resolve William Repo Path
 
-Before doing anything else, determine the William repo root. Try reading from project config first, then fall back to symlink resolution:
+Before doing anything else, determine the William repo root. Try reading from project config first, then fall back to the skill directory:
 
 ```bash
 WILLIAM_ROOT="$(node -e "try{const c=JSON.parse(require('fs').readFileSync('.william/config.json','utf-8'));if(c.williamPath)process.stdout.write(c.williamPath)}catch{}" 2>/dev/null)"
 if [ -z "$WILLIAM_ROOT" ]; then
-  SKILL_FILE="$(readlink -f ~/.claude/skills/william.md 2>/dev/null || readlink ~/.claude/skills/william.md 2>/dev/null || echo "")"
-  if [ -n "$SKILL_FILE" ]; then
-    WILLIAM_ROOT="$(cd "$(dirname "$SKILL_FILE")/.." && pwd)"
-  else
-    echo "ERROR: Could not resolve William codebase path. Run 'william init' to configure it."
-  fi
+  WILLIAM_ROOT="$(cd "${CLAUDE_SKILL_DIR}/../.." && pwd)"
 fi
 echo "WILLIAM_ROOT=$WILLIAM_ROOT"
 ```
@@ -42,7 +37,7 @@ Parse the **first argument** as the subcommand. Valid subcommands:
 
 Based on the parsed subcommand:
 
-1. **If the subcommand is valid**, read the corresponding instruction file from `$WILLIAM_ROOT/skills/instructions/{subcommand}.md` and follow those instructions completely.
+1. **If the subcommand is valid**, read the corresponding instruction file from `${CLAUDE_SKILL_DIR}/instructions/{subcommand}.md` and follow those instructions completely.
 
 2. **If no subcommand was provided** (empty args), display this help message:
 

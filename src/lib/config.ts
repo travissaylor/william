@@ -9,6 +9,7 @@ export interface GitConfig {
 
 export interface ProjectConfig {
   projectName?: string;
+  williamPath?: string;
   /** @deprecated Use `git.branchPrefix` instead. */
   branchPrefix?: string;
   prdOutput?: string;

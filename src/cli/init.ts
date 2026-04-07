@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { input, confirm, editor, select } from "@inquirer/prompts";
 import {
   loadProjectConfig,
@@ -11,6 +12,9 @@ import {
   areCompletionsInstalled,
   installCompletions,
 } from "./completions.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_WILLIAM_PATH = path.resolve(__dirname, "..", "..");
 
 export async function runInit(): Promise<void> {
   const cwd = process.cwd();
@@ -36,6 +40,17 @@ export async function runInit(): Promise<void> {
     validate: (value) => {
       if (!value.trim()) {
         return "Project name cannot be empty";
+      }
+      return true;
+    },
+  });
+
+  const williamPath = await input({
+    message: "Path to William codebase:",
+    default: DEFAULT_WILLIAM_PATH,
+    validate: (value) => {
+      if (!value.trim()) {
+        return "William codebase path cannot be empty";
       }
       return true;
     },
@@ -92,6 +107,7 @@ export async function runInit(): Promise<void> {
   const config: ProjectConfig = {};
 
   if (projectName) config.projectName = projectName;
+  config.williamPath = williamPath;
   if (prdOutput !== ".william/prds") config.prdOutput = prdOutput;
   if (Object.keys(git).length > 0) config.git = git;
 

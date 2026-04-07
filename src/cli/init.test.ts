@@ -42,6 +42,7 @@ describe("runInit", () => {
   it("creates .william/config.json with all fields", async () => {
     mockInput
       .mockResolvedValueOnce("my-project") // projectName
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("feature/") // branchPrefix
       .mockResolvedValueOnce("docs/prds"); // prdOutput
     mockSelect.mockResolvedValueOnce("worktree"); // git.workflow
@@ -56,6 +57,7 @@ describe("runInit", () => {
     const config = readConfig(configPath);
     expect(config).toEqual({
       projectName: "my-project",
+      williamPath: "/path/to/william",
       prdOutput: "docs/prds",
       git: {
         branchPrefix: "feature/",
@@ -67,6 +69,7 @@ describe("runInit", () => {
   it("omits branchPrefix when empty", async () => {
     mockInput
       .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("") // no branch prefix
       .mockResolvedValueOnce(".william/prds"); // default prdOutput
     mockSelect.mockResolvedValueOnce("worktree");
@@ -82,6 +85,7 @@ describe("runInit", () => {
   it("omits prdOutput when set to the default .william/prds", async () => {
     mockInput
       .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
     mockSelect.mockResolvedValueOnce("worktree");
@@ -99,6 +103,7 @@ describe("runInit", () => {
 
     mockInput
       .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
     mockSelect.mockResolvedValueOnce("worktree");
@@ -115,6 +120,7 @@ describe("runInit", () => {
   it("creates .gitignore if it doesn't exist", async () => {
     mockInput
       .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
     mockSelect.mockResolvedValueOnce("worktree");
@@ -136,6 +142,7 @@ describe("runInit", () => {
 
     mockInput
       .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
     mockSelect.mockResolvedValueOnce("worktree");
@@ -183,6 +190,7 @@ describe("runInit", () => {
       .mockResolvedValueOnce(false); // gitignore
     mockInput
       .mockResolvedValueOnce("new-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
     mockSelect.mockResolvedValueOnce("worktree");
@@ -197,6 +205,7 @@ describe("runInit", () => {
   it("filters empty lines from setup commands", async () => {
     mockInput
       .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
     mockSelect.mockResolvedValueOnce("worktree");
@@ -214,11 +223,28 @@ describe("runInit", () => {
     ]);
   });
 
+  it("always includes williamPath in config", async () => {
+    mockInput
+      .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/custom/william/path") // williamPath
+      .mockResolvedValueOnce("") // no branch prefix
+      .mockResolvedValueOnce(".william/prds"); // default prdOutput
+    mockSelect.mockResolvedValueOnce("worktree");
+    mockEditor.mockResolvedValueOnce("");
+    mockConfirm.mockResolvedValueOnce(false);
+
+    await runInit();
+
+    const config = readConfig(path.join(tmpDir, ".william", "config.json"));
+    expect(config.williamPath).toBe("/custom/william/path");
+  });
+
   it("appends newline separator to .gitignore without trailing newline", async () => {
     fs.writeFileSync(path.join(tmpDir, ".gitignore"), "node_modules/");
 
     mockInput
       .mockResolvedValueOnce("my-project")
+      .mockResolvedValueOnce("/path/to/william") // williamPath
       .mockResolvedValueOnce("")
       .mockResolvedValueOnce(".william/prds");
     mockSelect.mockResolvedValueOnce("worktree");

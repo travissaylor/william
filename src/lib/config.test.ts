@@ -112,6 +112,21 @@ describe("loadProjectConfig", () => {
     warnSpy.mockRestore();
   });
 
+  it("reads williamPath from config", () => {
+    const configDir = path.join(tmpDir, ".william");
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, "config.json"),
+      JSON.stringify({
+        projectName: "my-app",
+        williamPath: "/home/user/william",
+      }),
+    );
+
+    const config = loadProjectConfig(tmpDir);
+    expect(config?.williamPath).toBe("/home/user/william");
+  });
+
   it("reads git object directly when present", () => {
     const configDir = path.join(tmpDir, ".william");
     fs.mkdirSync(configDir, { recursive: true });
