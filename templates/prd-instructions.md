@@ -55,12 +55,23 @@ Each story needs:
 
 Each story should be small enough to implement in one focused session.
 
+**Dependencies between stories:**
+
+If a story cannot start until another story is complete, declare it with a `**Depends on:**` line. Use comma-separated story IDs:
+
+- `**Depends on:** US-001` — this story requires US-001 to be done first
+- `**Depends on:** US-001, US-002` — this story requires both US-001 and US-002
+
+Stories **without** a `**Depends on:**` line are independent and will run in parallel (wave 1). Stories with dependencies run in later waves, after their dependencies complete. This enables maximum parallelism during execution.
+
 **Format:**
 
 ````markdown
 ### US-001: [Title]
 
 **Description:** As a [user], I want [feature] so that [benefit].
+
+**Depends on:** US-XXX, US-YYY *(optional — omit if the story has no dependencies)*
 
 **Acceptance Criteria:**
 
@@ -152,6 +163,8 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 
 ### US-002: Display priority indicator on task cards
 
+**Depends on:** US-001
+
 **Description:** As a user, I want to see task priority at a glance so I know what needs attention first.
 
 **Acceptance Criteria:**
@@ -161,6 +174,8 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 - [ ] Typecheck passes
 
 ### US-003: Add priority selector to task edit
+
+**Depends on:** US-001
 
 **Description:** As a user, I want to change a task's priority when editing it.
 
@@ -172,6 +187,8 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 - [ ] Typecheck passes
 
 ### US-004: Filter tasks by priority
+
+**Depends on:** US-002
 
 **Description:** As a user, I want to filter the task list to see only high-priority items when I'm focused.
 
