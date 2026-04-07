@@ -380,6 +380,99 @@ describe("parsePrd", () => {
     });
   });
 
+  describe("dependency parsing", () => {
+    const PRD_WITH_DEPS = `# PRD: Deps Test
+
+## User Stories
+
+### US-001: First story
+**Description:** As a user, I want the first feature.
+
+**Acceptance Criteria:**
+- [ ] Done
+
+### US-002: Second story
+**Description:** As a user, I want the second feature.
+
+**Depends on:** US-001
+
+**Acceptance Criteria:**
+- [ ] Done
+
+### US-003: Third story
+**Description:** As a user, I want the third feature.
+
+**Depends on:** US-001, US-002
+
+**Acceptance Criteria:**
+- [ ] Done
+`;
+
+    it("parses dependsOn with a single dependency", () => {
+      const result = parsePrd(PRD_WITH_DEPS);
+      expect(result.stories[1].dependsOn).toEqual(["US-001"]);
+    });
+
+    it("parses dependsOn with multiple comma-separated dependencies", () => {
+      const result = parsePrd(PRD_WITH_DEPS);
+      expect(result.stories[2].dependsOn).toEqual(["US-001", "US-002"]);
+    });
+
+    it("returns empty dependsOn array when no Depends on field exists", () => {
+      const result = parsePrd(PRD_WITH_DEPS);
+      expect(result.stories[0].dependsOn).toEqual([]);
+    });
+
+    it("returns empty dependsOn for all stories in PRDs without dependency fields", () => {
+      const result = parsePrd(SMALL_PRD_WITH_ALL_SECTIONS);
+      for (const story of result.stories) {
+        expect(story.dependsOn).toEqual([]);
+      }
+    });
+
+    it("throws an error when a dependency references a non-existent story ID", () => {
+      const prd = `# PRD: Bad Dep
+
+## User Stories
+
+### US-001: First story
+**Description:** As a user, I want something.
+
+**Depends on:** US-999
+
+**Acceptance Criteria:**
+- [ ] Done
+`;
+      expect(() => parsePrd(prd)).toThrow(
+        'Story US-001 depends on "US-999" which does not exist in the PRD',
+      );
+    });
+
+    it("validates all invalid references and reports the first one found", () => {
+      const prd = `# PRD: Multiple Bad Deps
+
+## User Stories
+
+### US-001: First story
+**Description:** Story one.
+
+**Acceptance Criteria:**
+- [ ] Done
+
+### US-002: Second story
+**Description:** Story two.
+
+**Depends on:** US-001, US-050
+
+**Acceptance Criteria:**
+- [ ] Done
+`;
+      expect(() => parsePrd(prd)).toThrow(
+        'Story US-002 depends on "US-050" which does not exist in the PRD',
+      );
+    });
+  });
+
   describe("missing optional sections", () => {
     it("defaults designConsiderations to empty string when section is absent", () => {
       const result = parsePrd(PRD_MISSING_OPTIONAL_SECTIONS);

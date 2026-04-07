@@ -3,6 +3,7 @@ export interface ParsedStory {
   title: string;
   description: string;
   acceptanceCriteria: string[];
+  dependsOn: string[];
   rawMarkdown: string;
 }
 
@@ -79,6 +80,7 @@ function splitIntoSections(
 function parseStoryContent(rawMarkdown: string): {
   description: string;
   acceptanceCriteria: string[];
+  dependsOn: string[];
 } {
   let description = "";
   let acceptanceCriteria: string[] = [];
@@ -103,7 +105,17 @@ function parseStoryContent(rawMarkdown: string): {
       .filter((line) => line.length > 0);
   }
 
-  return { description, acceptanceCriteria };
+  // Extract depends on: comma-separated story IDs after **Depends on:**
+  let dependsOn: string[] = [];
+  const dependsMatch = /\*\*Depends on:\*\*\s*(.+)/.exec(rawMarkdown);
+  if (dependsMatch) {
+    dependsOn = dependsMatch[1]
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
+  }
+
+  return { description, acceptanceCriteria, dependsOn };
 }
 
 /**
@@ -151,8 +163,16 @@ function parseStories(content: string): ParsedStory[] {
       title = cleanedHeading.replace(/:$/, "").trim();
     }
 
-    const { description, acceptanceCriteria } = parseStoryContent(rawMarkdown);
-    stories.push({ id, title, description, acceptanceCriteria, rawMarkdown });
+    const { description, acceptanceCriteria, dependsOn } =
+      parseStoryContent(rawMarkdown);
+    stories.push({
+      id,
+      title,
+      description,
+      acceptanceCriteria,
+      dependsOn,
+      rawMarkdown,
+    });
   };
 
   for (const line of lines) {
@@ -180,6 +200,19 @@ function parseStories(content: string): ParsedStory[] {
   }
 
   flushStory();
+
+  // Validate that all dependsOn references point to existing story IDs
+  const storyIds = new Set(stories.map((s) => s.id));
+  for (const story of stories) {
+    for (const depId of story.dependsOn) {
+      if (!storyIds.has(depId)) {
+        throw new Error(
+          `Story ${story.id} depends on "${depId}" which does not exist in the PRD`,
+        );
+      }
+    }
+  }
+
   return stories;
 }
 
