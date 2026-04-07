@@ -8,26 +8,52 @@ Create a new workspace from a PRD file with zero interactive prompts, using defa
 
 ## Steps
 
-1. **Validate the PRD file exists** at the given path. If not, report an error.
+1. **Validate the PRD file exists** at the given path. If not, report an error and stop.
 
-2. **Load project config** from `.william/config.json` in the current working directory. If no config exists, use defaults:
-   - `git.workflow`: `"worktree"`
-   - `git.branchPrefix`: `""`
-   - `git.worktreeSetupCommands`: `[]`
+2. **Run the workspace creator** using the helper script. Execute:
 
-3. **Parse the PRD** to extract the workspace name, stories, and dependencies.
+   ```bash
+   npx tsx "$WILLIAM_ROOT/src/skill/new.ts" "<prd-path>"
+   ```
 
-4. **Create the workspace** using the shared library functions:
-   - Derive the workspace name from the PRD filename (without extension)
-   - Derive the branch name using the configured prefix
-   - Set the target directory to the current working directory
-   - Use the git workflow from config
+   This script:
+   - Loads project config from `.william/config.json` in the current working directory
+   - Parses the PRD to extract title, stories, and dependencies
+   - Derives the workspace name from the PRD title (kebab-cased)
+   - Derives the branch name using the configured prefix
+   - Creates the git worktree or branch per config
+   - Initializes `state.json` with wave plan (if dependencies exist)
+   - Copies the PRD into the workspace directory
+   - Outputs JSON on success with workspace details
 
-5. **Initialize state** from the parsed PRD, including wave computation if dependencies exist.
-
-6. **Report** the created workspace details:
+3. **Parse the JSON output** and report the results to the user:
    - Workspace name
+   - Project name
    - Branch name
+   - Git workflow mode
    - Number of stories
    - Number of waves (if dependencies present)
-   - Next step: `/william start`
+
+4. **Store the workspace name** in conversation context by noting it clearly, so that subsequent `/william start` can auto-detect which workspace to use.
+
+## Error Handling
+
+- If `<prd-path>` is missing, display: `Missing required argument. Usage: /william new <prd-path>`
+- If the PRD file doesn't exist, display the error from the script
+- If workspace creation fails (e.g., already exists, not a git repo), display the error from the script
+
+## Output Format
+
+On success, display something like:
+
+```
+Workspace created:
+  Name:      my-feature
+  Project:   my-project
+  Branch:    feature/my-feature
+  Workflow:  worktree
+  Stories:   12
+  Waves:     4
+
+Next step: /william start
+```
